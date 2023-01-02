@@ -24,7 +24,8 @@ class FPOR(AL_base):
         self.alpha= self.args.alpha                          #0.95
         self.t = self.args.t                                 #0.5
         self.solver = self.args.solver                       #"AdamW"
-        self.warm_start = self.args.warm_start                #1000
+        self.warm_start = self.args.warm_start               #1000
+        self.lr_s = self.args.lr_s                           #1
         self.workspace = self.args.workspace
         
         
@@ -42,6 +43,7 @@ class FPOR(AL_base):
                     'subprob_max_epoch': self.subprob_max_epoch, \
                     'rounds': self.rounds, \
                     'lr': self.lr, \
+                    'lr_s': self.lr_s, \
                     'alpha': self.alpha, \
                     't': self.t, \
                     'solver': self.solver, \
@@ -73,7 +75,7 @@ class FPOR(AL_base):
         if self.solver == "AdamW":
             self.optim = AdamW([
                         {'params': self.model.parameters(), 'lr': self.lr},
-                        {'params': self.s, 'lr': 1}  ##best to set as 0.5
+                        {'params': self.s, 'lr': self.lr_s}  ##best to set as 0.5
                         ])
         else:
             self.optim = LBFGS(list(self.model.parameters()) + list(self.s), \

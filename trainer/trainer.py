@@ -7,11 +7,11 @@ import numpy as np
 import wandb
 
 class trainer_base(pl.LightningModule):
-    def __init__(self, X, y, X_val, y_val, model, workspace, criterion, args):
+    def __init__(self, X, y, X_val, y_val, model, criterion, args):
         super().__init__()
         self.args = args
         self.X, self.y, self.X_val, self.y_val = X, y, X_val, y_val
-        self.workspace = workspace
+        self.workspace = self.args.workspace
         self.model = model
         self.criterion = criterion
         
@@ -69,10 +69,10 @@ class trainer_base(pl.LightningModule):
         norm_pred = (m(pred)[:, 1] > 0.5).int().detach().cpu().numpy()
         
         TP = int(norm_pred.T@(y.detach().cpu().numpy()==1).astype(int))
-        recall = 1.0*TP/torch.sum(self.y==1)
+        recall = 1.0*TP/torch.sum(y==1)
         return recall
         
-    
+    @torch.no_grad()
     def training_epoch_end(self, outputs):
         preds, target = [], []
         for out in outputs:
@@ -85,7 +85,8 @@ class trainer_base(pl.LightningModule):
         recall = self.cal_recall(preds, target)
         self.log('train/Precision', precision)
         self.log('train/Recall', recall)
-        
+    
+    @torch.no_grad()
     def validation_epoch_end(self, outputs):
         preds, target = [], []
         for out in outputs:
@@ -98,4 +99,15 @@ class trainer_base(pl.LightningModule):
         recall = self.cal_recall(preds, target)
         self.log('val/Precision', precision)
         self.log('val/Recall', recall)
+        
+    def test(self, X, y):
+        self.model = self.model.to(self.device)
+        X, y = X.to(self.device), y.to(self.device)
+        self.model.eval()
+        m = nn.Softmax(dim=1)
+        prediction = (m(self.model(X))[:, 1].detach().cpu().numpy() >= 0.5).astype(int)
+        TP = int(prediction.T@(y.detach().cpu().numpy()==1).astype(int))
+        precision = 1.0*TP/np.sum(prediction)
+        recall = 1.0*TP/torch.sum(self.y==1)
+        return precision, recall
         

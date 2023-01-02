@@ -36,6 +36,7 @@ def setup():
     parser.add_argument('--t', type=float, default=0.5)
     parser.add_argument('--solver', type=str, default="AdamW")
     parser.add_argument('--warm_start', type=int, default=1000)
+    parser.add_argument('--learning_rate_s', type=float, default=1)
     
     
     args = parser.parse_args()
@@ -98,7 +99,7 @@ if __name__ == "__main__":
         wandb_logger = WandbLogger(project="FPOR", \
                                    name=args.run_name, \
                                    save_dir=args.workspace)
-        max_epochs = 100
+        max_epochs = args.rounds
         wandb_logger.experiment.config.update({
             'dataset': args.dataset, \
             'rounds': max_epochs, \
@@ -123,7 +124,7 @@ if __name__ == "__main__":
         trainer.fit(MyLightningModule, \
                     train_dataloaders=train_loader, \
                     val_dataloaders=val_loader)
-        test_precision, test_recall = trainer.test(test_loader)
+        test_precision, test_recall = MyLightningModule.test(X_test_tensor, y_test_tensor)
         wandb.run.summary["test_precision"] = test_precision
         wandb.run.summary["test_recall"] = test_recall
         wandb.finish()

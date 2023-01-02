@@ -1,6 +1,7 @@
-python main.py --run_name AL_trail6 \
+python main.py --run_name AL_trail8 \
                 --model MLP \
                 --learning_rate 1e-4 \
+                --learning_rate_s 0.5 \
                 --method AL \
                 --subprob_max_epoch 100 \
                 --rounds 100 \
