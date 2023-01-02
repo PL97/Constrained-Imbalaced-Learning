@@ -2,3 +2,5 @@
 figs/
 binary_data/
 wandb/
+checkpoints/
+lightning_logs/

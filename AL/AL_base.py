@@ -1,9 +1,11 @@
 
 import torch
+import wandb
 
 class AL_base:
     @torch.no_grad()
     def __init__(self):
+        ## general hyperparameters (fine tune for best performance)
         pass
         
         

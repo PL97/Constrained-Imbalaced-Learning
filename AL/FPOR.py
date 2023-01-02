@@ -12,12 +12,13 @@ from AL.AL_base import AL_base
 class FPOR(AL_base):
     @torch.no_grad()
     def __init__(self, X, y, X_val, y_val, model, device, workspace, args):
+        super().__init__()
         self.args = args
         self.X, self.y, self.X_val, self.y_val = X, y, X_val, y_val
         self.device = device
         ## general hyperparameters (fine tune for best performance)
-        self.subprob_max_epoch=100
-        self.rounds = 1
+        self.subprob_max_epoch=200
+        self.rounds = 100
         self.lr = 0.0001
         self.alpha=0.95
         self.t = 0.5
@@ -28,27 +29,31 @@ class FPOR(AL_base):
         ## AL hyperparameters
         self.rho = 10
         self.delta = 1
-        self.warm_start = 100
+        self.warm_start = 1000
         
         
         ## track hyparam
         self.wandb_run = wandb.init(project='FPOR', \
-                   name=args.run_name, \
+                   name=self.args.run_name, \
+                   dir = self.args.workspace, \
                    config={
+                    'dataset': self.args.dataset, \
                     'subprob_max_epoch': self.subprob_max_epoch, \
                     'rounds': self.rounds, \
                     'lr': self.lr, \
                     'alpha': self.alpha, \
                     't': self.t, \
-                    'solver': self.solver \
+                    'solver': self.solver, \
+                    'warm_start': self.warm_start
                    })
-        wandb.define_metric("train/step")
-        wandb.define_metric("train/*", step_metric="train/step")
+        wandb.define_metric("trainer/global_step")
+        wandb.define_metric("train/*", step_metric="trainer/global_step")
+        wandb.define_metric("val/*", step_metric="trainer/global_step")
         wandb.define_metric("val/precision", summary="max")
         wandb.define_metric("val/recall", summary="max")
-        art_dataset = wandb.Artifact(self.args.dataset, type='dataset')
-        art_dataset.add_file(f"binary_data/{self.args.dataset}.csv")
-        wandb.log_artifact(art_dataset)
+        # art_dataset = wandb.Artifact(self.args.dataset, type='dataset')
+        # art_dataset.add_file(f"binary_data/{self.args.dataset}.csv")
+        # wandb.log_artifact(art_dataset)
         config = wandb.config
         config.learning_rate = self.lr
         config.alpha=0.95
@@ -186,7 +191,7 @@ class FPOR(AL_base):
                 self.rho *= self.delta  
                 
                 
-                wandb.log({ "train/step": r, \
+                wandb.log({ "trainer/global_step": r, \
                             "train/Obj": self.objective().item(), \
                             "train/IEQ": constrains[0].item(), \
                             "train/EQ": torch.sum(constrains[1:]).item(), \
@@ -213,9 +218,9 @@ class FPOR(AL_base):
         torch.save(best_recall_model, best_recall_model_name)
         art_model = wandb.Artifact(f"{self.args.dataset}-{self.args.model}-{self.wandb_run.id}", type='model')
         art_model.add_file(final_model_name)
-        art_model.add_file(best_precision_model_name)
-        art_model.add_file(best_recall_model_name)
         wandb.log_artifact(art_model, aliases=["final"])
+        # art_model.add_file(best_precision_model_name)
+        # art_model.add_file(best_recall_model_name)
         
         wandb.run.summary["train_precision"] = train_precision
         wandb.run.summary["train_recall"] = train_recall
