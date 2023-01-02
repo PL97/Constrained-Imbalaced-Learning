@@ -25,7 +25,7 @@ class FPOR(AL_base):
         self.t = self.args.t                                 #0.5
         self.solver = self.args.solver                       #"AdamW"
         self.warm_start = self.args.warm_start               #1000
-        self.lr_s = self.args.lr_s                           #1
+        self.lr_s = self.args.learning_rate_s                #1
         self.workspace = self.args.workspace
         
         
