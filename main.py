@@ -28,6 +28,16 @@ def setup():
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--method', type=str, default="AL")
     
+    
+    ## for AL method only
+    parser.add_argument('--subprob_max_epoch', type=int, default=200)
+    parser.add_argument('--rounds', type=int, default=100)
+    parser.add_argument('--alpha', type=float, default=0.95)
+    parser.add_argument('--t', type=float, default=0.5)
+    parser.add_argument('--solver', type=str, default="AdamW")
+    parser.add_argument('--warm_start', type=int, default=1000)
+    
+    
     args = parser.parse_args()
     args.workspace = os.path.join(args.workspace, args.dataset, args.method)
     random_seed = args.random_seed
@@ -70,7 +80,7 @@ if __name__ == "__main__":
         model.train()
         trainer = FPOR(X = X_train_tensor, y = y_train_tenosr, \
                         X_val = X_val_tensor, y_val = y_val_tensor, \
-                        device=device, model=model, workspace=args.workspace, args=args)
+                        device=device, model=model, args=args)
         model = trainer.fit()
         test_precision, test_recall = trainer.test(X_test_tensor, y_test_tensor)
         wandb.run.summary["test_precision"] = test_precision
@@ -97,21 +107,27 @@ if __name__ == "__main__":
         })
         wandb_logger.watch(model, log="all")
         wandb.define_metric("train/*", step_metric="trainer/global_step")
+        wandb.define_metric("val/*", step_metric="trainer/global_step")
         args.wandb_logger = wandb_logger
         trainer = pl.Trainer(max_epochs=max_epochs, 
                             accelerator="gpu", 
                             devices=1, 
                             strategy = DDPStrategy(find_unused_parameters=False),
-                            log_every_n_steps=20,
+                            # log_every_n_steps=20,
                             auto_scale_batch_size=True,
                             logger=wandb_logger)
         
         MyLightningModule = trainer_base(X = X_train_tensor, y = y_train_tenosr, \
                         X_val = X_val_tensor, y_val = y_val_tensor, \
-                        model=model, workspace=args.workspace, criterion=criterion, args=args)
+                        model=model, criterion=criterion, args=args)
         trainer.fit(MyLightningModule, \
                     train_dataloaders=train_loader, \
                     val_dataloaders=val_loader)
+        test_precision, test_recall = trainer.test(test_loader)
+        wandb.run.summary["test_precision"] = test_precision
+        wandb.run.summary["test_recall"] = test_recall
+        wandb.finish()
+
     else:
         exit("not defined method")
     

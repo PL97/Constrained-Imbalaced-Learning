@@ -4,3 +4,6 @@ binary_data/
 wandb/
 checkpoints/
 lightning_logs/
+*.out
+*.pyc
+IL_opt

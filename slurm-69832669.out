@@ -1,0 +1,11 @@
+/home/jusun/peng0347/miniconda3/lib/python3.9/site-packages/scipy/__init__.py:146: UserWarning: A NumPy version >=1.16.5 and <1.23.0 is required for this version of SciPy (detected version 1.23.4
+  warnings.warn(f"A NumPy version >={np_minversion} and <{np_maxversion}"
+label distribution: Counter({1: 611, 0: 538})
+Traceback (most recent call last):
+  File "/panfs/jay/groups/15/jusun/peng0347/imbalanced learning/main.py", line 63, in <module>
+    X_tensor, y_tenosr, X, y = get_data(name=args.dataset, device=device)
+  File "/panfs/jay/groups/15/jusun/peng0347/imbalanced learning/dataset/UCI.py", line 24, in get_data
+    return torch.from_numpy(X).to(device), torch.from_numpy(y).to(device), X, y
+  File "/home/jusun/peng0347/miniconda3/lib/python3.9/site-packages/torch/cuda/__init__.py", line 214, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: No CUDA GPUs are available

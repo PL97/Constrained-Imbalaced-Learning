@@ -11,25 +11,26 @@ from AL.AL_base import AL_base
 
 class FPOR(AL_base):
     @torch.no_grad()
-    def __init__(self, X, y, X_val, y_val, model, device, workspace, args):
+    def __init__(self, X, y, X_val, y_val, model, device, args):
         super().__init__()
         self.args = args
         self.X, self.y, self.X_val, self.y_val = X, y, X_val, y_val
         self.device = device
-        ## general hyperparameters (fine tune for best performance)
-        self.subprob_max_epoch=200
-        self.rounds = 100
-        self.lr = 0.0001
-        self.alpha=0.95
-        self.t = 0.5
         self.model = model.to(self.device)
-        self.solver = "AdamW"
-        self.workspace = workspace
+        ## general hyperparameters (fine tune for best performance)
+        self.subprob_max_epoch= self.args.subprob_max_epoch  #200
+        self.rounds = self.args.rounds                       #100
+        self.lr = self.args.learning_rate                    #0.0001
+        self.alpha= self.args.alpha                          #0.95
+        self.t = self.args.t                                 #0.5
+        self.solver = self.args.solver                       #"AdamW"
+        self.warm_start = self.args.warm_start                #1000
+        self.workspace = self.args.workspace
+        
         
         ## AL hyperparameters
         self.rho = 10
         self.delta = 1
-        self.warm_start = 1000
         
         
         ## track hyparam
@@ -54,9 +55,6 @@ class FPOR(AL_base):
         # art_dataset = wandb.Artifact(self.args.dataset, type='dataset')
         # art_dataset.add_file(f"binary_data/{self.args.dataset}.csv")
         # wandb.log_artifact(art_dataset)
-        config = wandb.config
-        config.learning_rate = self.lr
-        config.alpha=0.95
         
         
         
