@@ -11,26 +11,30 @@ from AL.AL_base import AL_base
 
 class FPOR(AL_base):
     @torch.no_grad()
-    def __init__(self, X, y, model, device):
-        self.X, self.y = X, y
+    def __init__(self, X, y, X_val, y_val, model, device, workspace, args):
+        self.args = args
+        self.X, self.y, self.X_val, self.y_val = X, y, X_val, y_val
         self.device = device
         ## general hyperparameters (fine tune for best performance)
         self.subprob_max_epoch=100
-        self.rounds = 100
+        self.rounds = 1
         self.lr = 0.0001
         self.alpha=0.95
         self.t = 0.5
         self.model = model.to(self.device)
         self.solver = "AdamW"
+        self.workspace = workspace
         
         ## AL hyperparameters
         self.rho = 10
         self.delta = 1
-        self.warm_start = 1000
+        self.warm_start = 100
         
         
         ## track hyparam
-        wandb.init(project='FPOR', config={
+        self.wandb_run = wandb.init(project='FPOR', \
+                   name=args.run_name, \
+                   config={
                     'subprob_max_epoch': self.subprob_max_epoch, \
                     'rounds': self.rounds, \
                     'lr': self.lr, \
@@ -38,9 +42,17 @@ class FPOR(AL_base):
                     't': self.t, \
                     'solver': self.solver \
                    })
+        wandb.define_metric("train/step")
+        wandb.define_metric("train/*", step_metric="train/step")
+        wandb.define_metric("val/precision", summary="max")
+        wandb.define_metric("val/recall", summary="max")
+        art_dataset = wandb.Artifact(self.args.dataset, type='dataset')
+        art_dataset.add_file(f"binary_data/{self.args.dataset}.csv")
+        wandb.log_artifact(art_dataset)
         config = wandb.config
         config.learning_rate = self.lr
         config.alpha=0.95
+        
         
         
         ########################### DO NOT TOUCH STARTS FROM HERE ####################
@@ -72,14 +84,14 @@ class FPOR(AL_base):
 
 
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
-    def constrain(self, folding):
+    def constrain(self, folding=True):
         fx = self.model(self.X)
         ineq = torch.maximum(torch.tensor(0), \
             # self.alpha * torch.sum(self.s) - self.s.T@(self.y==1).double()
             self.alpha - self.s.T@(self.y==1).double() / torch.sum(self.s) 
             )
         eqs = torch.maximum(self.s+fx-1-self.t, torch.tensor(0)) - torch.maximum(-self.s, fx-self.t)
-
+        
         
         ## inequality format get ride of interior
         # pos_idx = (self.y==1).flatten()
@@ -141,6 +153,8 @@ class FPOR(AL_base):
 
 
     def fit(self):
+        best_precision = 0
+        best_recall = 0
         if self.warm_start > 0:
             self.warmstart()
     
@@ -159,24 +173,62 @@ class FPOR(AL_base):
             self.initialize_with_feasiblity(quiet=True)
             with torch.no_grad():
                 self.update_langrangian_multiplier()
-                prediction = (self.model(self.X).detach().cpu().numpy() >= self.t).astype(int)
-                TP = int(prediction.T@(self.y.detach().cpu().numpy()==1).astype(int))
+                
+                ## log training performance
+                train_precision, train_recall = self.test(X=self.X, y=self.y)
+                val_precision, val_recall = self.test(X=self.X_val, y=self.y_val)
                 
                 print(f"========== Round {r}/{self.rounds} ===========")
-                print("Precision: {:3f} \t Recall {:3f}".format(1.0*TP/np.sum(prediction), 1.0*TP/torch.sum(self.y==1)))
+                print("Precision: {:3f} \t Recall {:3f}".format(train_precision, train_recall))
                 constrains = self.constrain()
                 print("Obj: {}\tIEQ: {}\tEQ: {}".format(self.objective().item(), constrains[0].item(), torch.sum(constrains[1:]).item()))
+                print("(val)Precision: {:3f} \t Recall {:3f}".format(val_precision, val_recall))
                 self.rho *= self.delta  
                 
-                wandb.log({"Obj": self.objective().item(), \
-                            "IEQ": constrains[0].item(), \
-                            "EQ": torch.sum(constrains[1:]).item()})
                 
-                wandb.log({"Precision": 1.0*TP/np.sum(prediction), \
-                            "Recall": 1.0*TP/torch.sum(self.y==1)})
+                wandb.log({ "train/step": r, \
+                            "train/Obj": self.objective().item(), \
+                            "train/IEQ": constrains[0].item(), \
+                            "train/EQ": torch.sum(constrains[1:]).item(), \
+                            "train/Precision": train_precision, \
+                            "train/Recall": train_recall, \
+                            "val/Precision": val_precision, \
+                            "val/Recall": val_recall
+                            })
                 
+                if best_recall < val_recall:
+                    best_recall_model = self.model
+                    best_recall = val_recall
                 
-        art = wandb.Artifact("MLP", type="model")
-        art.add_file("final.pt")
-        wandb.log_artifact(art)
+                if best_precision < val_precision:
+                    best_precision_model = self.model
+                    best_precision = val_precision
+                
+        
+        final_model_name = f"{self.workspace}/final.pt"
+        best_precision_model_name = f"{self.workspace}/best_precision.pt"
+        best_recall_model_name = f"{self.workspace}/best_recall.pt"
+        torch.save(self.model, final_model_name)
+        torch.save(best_precision_model, best_precision_model_name)
+        torch.save(best_recall_model, best_recall_model_name)
+        art_model = wandb.Artifact(f"{self.args.dataset}-{self.args.model}-{self.wandb_run.id}", type='model')
+        art_model.add_file(final_model_name)
+        art_model.add_file(best_precision_model_name)
+        art_model.add_file(best_recall_model_name)
+        wandb.log_artifact(art_model, aliases=["final"])
+        
+        wandb.run.summary["train_precision"] = train_precision
+        wandb.run.summary["train_recall"] = train_recall
+        wandb.run.summary["val_precision"] = val_precision
+        wandb.run.summary["val_recall"] = val_recall
+        
         return self.model
+    
+    @torch.no_grad()
+    def test(self, X, y):
+        self.model.eval()
+        prediction = (self.model(X).detach().cpu().numpy() >= self.t).astype(int)
+        TP = int(prediction.T@(y.detach().cpu().numpy()==1).astype(int))
+        precision = 1.0*TP/np.sum(prediction)
+        recall = 1.0*TP/torch.sum(self.y==1)
+        return precision, recall
