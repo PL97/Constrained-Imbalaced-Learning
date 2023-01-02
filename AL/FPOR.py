@@ -143,7 +143,6 @@ class FPOR(AL_base):
         sigmoid = nn.Sigmoid()
         for r in range(self.rounds):
             # 3. Log gradients and model parameters
-            wandb.watch(self.model)
             for i in range(self.subprob_max_epoch):
                 self.solve_sub_problem()
                 with torch.no_grad():
@@ -151,7 +150,8 @@ class FPOR(AL_base):
                     self.s.data.copy_((sigmoid(self.s.data-0.5) >= 0.5).int())
                     # self.s.copy_(self.s.data.clamp(0, 1))
                     # pass
-                    
+            
+            wandb.watch(self.model)        
             ## update lagrangian multiplier and evaluation
             self.initialize_with_feasiblity(quiet=True)
             with torch.no_grad():
