@@ -72,7 +72,7 @@ class FPOR(AL_base):
 
 
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
-    def constrain(self):
+    def constrain(self, folding):
         fx = self.model(self.X)
         ineq = torch.maximum(torch.tensor(0), \
             # self.alpha * torch.sum(self.s) - self.s.T@(self.y==1).double()
@@ -80,6 +80,8 @@ class FPOR(AL_base):
             )
         eqs = torch.maximum(self.s+fx-1-self.t, torch.tensor(0)) - torch.maximum(-self.s, fx-self.t)
 
+        
+        ## inequality format get ride of interior
         # pos_idx = (self.y==1).flatten()
         # eqs_p = torch.maximum(torch.tensor(0), \
         #     torch.maximum(self.s[pos_idx]+fx[pos_idx]-1-self.t, torch.tensor(0)) - torch.maximum(-self.s[pos_idx], fx[pos_idx]-self.t)
@@ -88,17 +90,20 @@ class FPOR(AL_base):
         # eqs_n = torch.maximum(torch.tensor(0), \
         #     -torch.maximum(self.s[neg_idx]+fx[neg_idx]-1-self.t, torch.tensor(0)) + torch.maximum(-self.s[neg_idx], fx[neg_idx]-self.t)
         # )
-        ## two options: 1) treat them as separate constrains, 2) folding
-        ## option 1
-        # return torch.cat([ineq, eqs], dim=0)
-        # return torch.cat([self.X.shape[0]*ineq, eqs], dim=0)
-        # return torch.cat([ineq, eqs/self.X.shape[0]], dim=0)
         
-        ## option 2
-        # return torch.abs(ineq) + torch.sum(torch.abs(eqs))
-        return torch.cat([ineq, torch.sum(torch.abs(eqs)).view(1, 1)], dim=0)
-        # return torch.maximum(ineq, torch.sum(torch.abs(eqs)).view(1, 1))
-        # return torch.cat([ineq, (torch.sum(eqs_p) + torch.sum(eqs_n).view(1, 1))], dim=0)
+        
+        ## two options: 1) treat them as separate constrains, 2) folding
+        if not folding:
+            # option 1
+            return torch.cat([ineq, eqs], dim=0)
+            # return torch.cat([self.X.shape[0]*ineq, eqs], dim=0)
+            # return torch.cat([ineq, eqs/self.X.shape[0]], dim=0)
+        else:
+            ## option 2
+            # return torch.abs(ineq) + torch.sum(torch.abs(eqs))
+            return torch.cat([ineq, torch.sum(torch.abs(eqs)).view(1, 1)], dim=0)
+            # return torch.maximum(ineq, torch.sum(torch.abs(eqs)).view(1, 1))
+            # return torch.cat([ineq, (torch.sum(eqs_p) + torch.sum(eqs_n).view(1, 1))], dim=0)
     
     
     def warmstart(self):
@@ -146,10 +151,8 @@ class FPOR(AL_base):
             for i in range(self.subprob_max_epoch):
                 self.solve_sub_problem()
                 with torch.no_grad():
-                    # self.s.data = sigmoid(self.s.data)
                     self.s.data.copy_((sigmoid(self.s.data-0.5) >= 0.5).int())
                     # self.s.copy_(self.s.data.clamp(0, 1))
-                    # pass
             
             wandb.watch(self.model)        
             ## update lagrangian multiplier and evaluation
@@ -163,7 +166,6 @@ class FPOR(AL_base):
                 print("Precision: {:3f} \t Recall {:3f}".format(1.0*TP/np.sum(prediction), 1.0*TP/torch.sum(self.y==1)))
                 constrains = self.constrain()
                 print("Obj: {}\tIEQ: {}\tEQ: {}".format(self.objective().item(), constrains[0].item(), torch.sum(constrains[1:]).item()))
-                # print(self.s)
                 self.rho *= self.delta  
                 
                 wandb.log({"Obj": self.objective().item(), \
@@ -174,12 +176,6 @@ class FPOR(AL_base):
                             "Recall": 1.0*TP/torch.sum(self.y==1)})
                 
                 
-                # X = self.X.detach().cpu().numpy()
-                # y = self.y.detach().cpu().numpy()
-                # prediction = (X@self.model[0].weight.data.detach().cpu().numpy().T + self.model[0].bias.data.item() >= self.t).astype(int)
-                # TP = int(prediction.T@(y==1).astype(int))
-                # print("Precision: {:3f} \t Recall {:3f}".format(1.0*TP/np.sum(prediction), 1.0*TP/np.sum(y==1)))
-    
         art = wandb.Artifact("MLP", type="model")
         art.add_file("final.pt")
         wandb.log_artifact(art)
