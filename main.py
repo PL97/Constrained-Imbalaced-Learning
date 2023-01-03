@@ -68,10 +68,12 @@ if __name__ == "__main__":
     X_train_tensor, X_tmp_tensor, y_train_tenosr, y_tmp_tensor = train_test_split(X_tensor, \
                                                       y_tenosr, \
                                                       test_size=0.2, \
+                                                      stratify=y_tenosr.cpu().numpy(), \
                                                       random_state=args.random_seed)
     X_val_tensor, X_test_tensor, y_val_tensor, y_test_tensor = train_test_split(X_tmp_tensor, \
                                                       y_tmp_tensor, \
                                                       test_size=0.5, \
+                                                      stratify=y_tmp_tensor.cpu().numpy(), \
                                                       random_state=args.random_seed)
     
     
