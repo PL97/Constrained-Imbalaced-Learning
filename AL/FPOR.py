@@ -241,5 +241,5 @@ class FPOR(AL_base):
         prediction = (self.model(X).detach().cpu().numpy() >= self.t).astype(int)
         TP = int(prediction.T@(y.detach().cpu().numpy()==1).astype(int))
         precision = 1.0*TP/np.sum(prediction)
-        recall = 1.0*TP/torch.sum(self.y==1)
+        recall = 1.0*TP/torch.sum(y==1)
         return precision, recall
