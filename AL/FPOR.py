@@ -26,12 +26,13 @@ class FPOR(AL_base):
         self.solver = self.args.solver                       #"AdamW"
         self.warm_start = self.args.warm_start               #1000
         self.lr_s = self.args.learning_rate_s                #1
+        self.rho = self.args.rho                             #10
+        self.delta = self.args.delta                         #1
         self.workspace = self.args.workspace
         
         
         ## AL hyperparameters
-        self.rho = 10
-        self.delta = 1
+        
         
         
         ## track hyparam
@@ -47,7 +48,9 @@ class FPOR(AL_base):
                     'alpha': self.alpha, \
                     't': self.t, \
                     'solver': self.solver, \
-                    'warm_start': self.warm_start
+                    'warm_start': self.warm_start, \
+                    'rho': self.rho, \
+                    'delta': self.delta
                    })
         wandb.define_metric("trainer/global_step")
         wandb.define_metric("train/*", step_metric="trainer/global_step")
@@ -211,21 +214,24 @@ class FPOR(AL_base):
                 
         
         final_model_name = f"{self.workspace}/final.pt"
-        best_precision_model_name = f"{self.workspace}/best_precision.pt"
-        best_recall_model_name = f"{self.workspace}/best_recall.pt"
+        # best_precision_model_name = f"{self.workspace}/best_precision.pt"
+        # best_recall_model_name = f"{self.workspace}/best_recall.pt"
         torch.save(self.model, final_model_name)
-        torch.save(best_precision_model, best_precision_model_name)
-        torch.save(best_recall_model, best_recall_model_name)
+        # torch.save(best_precision_model, best_precision_model_name)
+        # torch.save(best_recall_model, best_recall_model_name)
         art_model = wandb.Artifact(f"{self.args.dataset}-{self.args.model}-{self.wandb_run.id}", type='model')
         art_model.add_file(final_model_name)
         wandb.log_artifact(art_model, aliases=["final"])
         # art_model.add_file(best_precision_model_name)
         # art_model.add_file(best_recall_model_name)
         
-        wandb.run.summary["train_precision"] = train_precision
-        wandb.run.summary["train_recall"] = train_recall
-        wandb.run.summary["val_precision"] = val_precision
-        wandb.run.summary["val_recall"] = val_recall
+        try:
+            wandb.run.summary["train_precision"] = train_precision
+            wandb.run.summary["train_recall"] = train_recall
+            wandb.run.summary["val_precision"] = val_precision
+            wandb.run.summary["val_recall"] = val_recall
+        except:
+            print("skip AL...")
         
         return self.model
     

@@ -37,6 +37,8 @@ def setup():
     parser.add_argument('--solver', type=str, default="AdamW")
     parser.add_argument('--warm_start', type=int, default=1000)
     parser.add_argument('--learning_rate_s', type=float, default=1)
+    parser.add_argument('--delta', type=float, default=1)
+    parser.add_argument('--rho', type=float, default=10)
     
     
     args = parser.parse_args()
