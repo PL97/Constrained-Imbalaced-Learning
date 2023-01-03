@@ -7,10 +7,9 @@ import numpy as np
 import wandb
 
 class trainer_base(pl.LightningModule):
-    def __init__(self, X, y, X_val, y_val, model, criterion, args):
+    def __init__(self, model, criterion, args):
         super().__init__()
         self.args = args
-        self.X, self.y, self.X_val, self.y_val = X, y, X_val, y_val
         self.workspace = self.args.workspace
         self.model = model
         self.criterion = criterion
@@ -99,15 +98,16 @@ class trainer_base(pl.LightningModule):
         recall = self.cal_recall(preds, target)
         self.log('val/Precision', precision)
         self.log('val/Recall', recall)
-        
+    
+    @torch.no_grad()
     def test(self, X, y):
+        self.model.eval()
         self.model = self.model.to(self.device)
         X, y = X.to(self.device), y.to(self.device)
-        self.model.eval()
         m = nn.Softmax(dim=1)
         prediction = (m(self.model(X))[:, 1].detach().cpu().numpy() >= 0.5).astype(int)
         TP = int(prediction.T@(y.detach().cpu().numpy()==1).astype(int))
         precision = 1.0*TP/np.sum(prediction)
-        recall = 1.0*TP/torch.sum(self.y==1)
+        recall = 1.0*TP/torch.sum(y==1)
         return precision, recall
         

@@ -6,6 +6,7 @@ import sys
 import wandb
 
 from AL.AL_base import AL_base
+from utils.loss import WCE
 
 
 
@@ -14,9 +15,10 @@ class FPOR(AL_base):
     def __init__(self, X, y, X_val, y_val, model, device, args):
         super().__init__()
         self.args = args
-        self.X, self.y, self.X_val, self.y_val = X, y, X_val, y_val
+        
         self.device = device
         self.model = model.to(self.device)
+        self.X, self.y, self.X_val, self.y_val = X.to(self.device), y.to(self.device), X_val.to(self.device), y_val.to(self.device)
         ## general hyperparameters (fine tune for best performance)
         self.subprob_max_epoch= self.args.subprob_max_epoch  #200
         self.rounds = self.args.rounds                       #100
@@ -93,7 +95,8 @@ class FPOR(AL_base):
 
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
     def constrain(self, folding=True):
-        fx = self.model(self.X)
+        m = nn.Softmax(dim=1)
+        fx = m(self.model(self.X))[:, 1].view(-1, 1)
         ineq = torch.maximum(torch.tensor(0), \
             # self.alpha * torch.sum(self.s) - self.s.T@(self.y==1).double()
             self.alpha - self.s.T@(self.y==1).double() / torch.sum(self.s) 
@@ -130,27 +133,30 @@ class FPOR(AL_base):
         optim = AdamW([
                 {'params': self.model.parameters(), 'lr': self.lr}
                 ])
-        criterion = nn.BCELoss()
-        # criterion = nn.BCEWithLogitsLoss()
+        # criterion = WCE(npos=torch.sum(self.y==1).item(), nneg=torch.sum(self.y==0).item(), device=self.device)
+        criterion = self.args.criterion
         for _ in range(self.warm_start):
-            L = criterion(self.model(self.X), self.y)
+            self.model.train()
+            optim.zero_grad()
+            L = criterion(self.model(self.X), self.y.flatten().long())
             L.backward()
             optim.step()
             
             with torch.no_grad():
-                prediction = (self.model(self.X).detach().cpu().numpy() > self.t).astype(int)
-                TP = int(prediction.T@(self.y.detach().cpu().numpy()==1).astype(int))
+                self.model.eval()
+                train_precision, train_recall = self.test(X=self.X, y=self.y)
                 
                 print(f"========== Warm Start Round {_}/{self.warm_start} ===========")
-                print("Precision: {:3f} \t Recall {:3f}".format(1.0*TP/np.sum(prediction>self.t), 1.0*TP/torch.sum(self.y==1)))
-                constrains = self.constrain()
-                print("Obj: {}\tEQ: {}\tIEQ: {}".format(self.objective().item(), constrains[0].item(), torch.sum(constrains[1:]).item()))
+                print("Precision: {:3f} \t Recall {:3f}".format(train_precision, train_recall))
+                # constrains = self.constrain()
+                # print("Obj: {}\tEQ: {}\tIEQ: {}".format(self.objective().item(), constrains[0].item(), torch.sum(constrains[1:]).item()))
         
     
     @torch.no_grad()
     def initialize_with_feasiblity(self, quiet=False):
+        m = nn.Softmax(dim=-1)
         self.s -= self.s
-        self.s += (self.model(self.X) >= self.t).int()
+        self.s += (m(self.model(self.X))[:, 1].view(-1, 1) >= self.t).int()
         if not quiet:
             print("================= Init with feasibility ===================")
             constrains = self.constrain()
@@ -166,11 +172,17 @@ class FPOR(AL_base):
         if self.warm_start > 0:
             self.warmstart()
     
+
+        if self.rounds == 0:
+            return self.model
+        
         self.initialize_with_feasiblity()
+        
         sigmoid = nn.Sigmoid()
         for r in range(self.rounds):
             # 3. Log gradients and model parameters
             for i in range(self.subprob_max_epoch):
+                self.model.train()
                 self.solve_sub_problem()
                 with torch.no_grad():
                     self.s.data.copy_((sigmoid(self.s.data-0.5) >= 0.5).int())
@@ -180,6 +192,7 @@ class FPOR(AL_base):
             ## update lagrangian multiplier and evaluation
             self.initialize_with_feasiblity(quiet=True)
             with torch.no_grad():
+                self.model.eval()
                 self.update_langrangian_multiplier()
                 
                 ## log training performance
@@ -238,8 +251,11 @@ class FPOR(AL_base):
     @torch.no_grad()
     def test(self, X, y):
         self.model.eval()
-        prediction = (self.model(X).detach().cpu().numpy() >= self.t).astype(int)
+        self.model = self.model.to(self.device)
+        X, y = X.to(self.device), y.to(self.device)
+        m = nn.Softmax(dim=1)
+        prediction = (m(self.model(X))[:, 1].detach().cpu().numpy() >= self.t).astype(int)
         TP = int(prediction.T@(y.detach().cpu().numpy()==1).astype(int))
         precision = 1.0*TP/np.sum(prediction)
-        recall = 1.0*TP/torch.sum(self.y==1)
+        recall = 1.0*TP/torch.sum(y==1)
         return precision, recall

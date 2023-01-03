@@ -1,0 +1,465 @@
+label distribution: Counter({1: 611, 0: 538})
+========== Warm Start Round 0/100 ===========
+Precision: 0.571014 	 Recall 0.402863
+Obj: 0.0	EQ: nan	IEQ: 10265.08310431242
+========== Warm Start Round 1/100 ===========
+Precision: 0.606061 	 Recall 0.449898
+Obj: 0.0	EQ: nan	IEQ: 11533.575997292995
+========== Warm Start Round 2/100 ===========
+Precision: 0.650919 	 Recall 0.507157
+Obj: 0.0	EQ: nan	IEQ: 13348.301555156708
+========== Warm Start Round 3/100 ===========
+Precision: 0.676768 	 Recall 0.548057
+Obj: 0.0	EQ: nan	IEQ: 15463.563906252384
+========== Warm Start Round 4/100 ===========
+Precision: 0.707729 	 Recall 0.599182
+Obj: 0.0	EQ: nan	IEQ: 17809.910178780556
+========== Warm Start Round 5/100 ===========
+Precision: 0.723404 	 Recall 0.625767
+Obj: 0.0	EQ: nan	IEQ: 20331.354673564434
+========== Warm Start Round 6/100 ===========
+Precision: 0.737819 	 Recall 0.650307
+Obj: 0.0	EQ: nan	IEQ: 22957.707279622555
+========== Warm Start Round 7/100 ===========
+Precision: 0.745370 	 Recall 0.658487
+Obj: 0.0	EQ: nan	IEQ: 25611.62695622444
+========== Warm Start Round 8/100 ===========
+Precision: 0.761021 	 Recall 0.670757
+Obj: 0.0	EQ: nan	IEQ: 28300.621229231358
+========== Warm Start Round 9/100 ===========
+Precision: 0.765808 	 Recall 0.668712
+Obj: 0.0	EQ: nan	IEQ: 30994.675223112106
+========== Warm Start Round 10/100 ===========
+Precision: 0.767442 	 Recall 0.674847
+Obj: 0.0	EQ: nan	IEQ: 33641.2621114254
+========== Warm Start Round 11/100 ===========
+Precision: 0.768692 	 Recall 0.672802
+Obj: 0.0	EQ: nan	IEQ: 36202.72737145424
+========== Warm Start Round 12/100 ===========
+Precision: 0.767442 	 Recall 0.674847
+Obj: 0.0	EQ: nan	IEQ: 38651.34458732605
+========== Warm Start Round 13/100 ===========
+Precision: 0.767442 	 Recall 0.674847
+Obj: 0.0	EQ: nan	IEQ: 41022.15357226133
+========== Warm Start Round 14/100 ===========
+Precision: 0.774118 	 Recall 0.672802
+Obj: 0.0	EQ: nan	IEQ: 43274.471037209034
+========== Warm Start Round 15/100 ===========
+Precision: 0.777251 	 Recall 0.670757
+Obj: 0.0	EQ: nan	IEQ: 45408.359153687954
+========== Warm Start Round 16/100 ===========
+Precision: 0.775656 	 Recall 0.664622
+Obj: 0.0	EQ: nan	IEQ: 47441.91788583994
+========== Warm Start Round 17/100 ===========
+Precision: 0.779904 	 Recall 0.666667
+Obj: 0.0	EQ: nan	IEQ: 49385.681060910225
+========== Warm Start Round 18/100 ===========
+Precision: 0.785888 	 Recall 0.660532
+Obj: 0.0	EQ: nan	IEQ: 51301.48419761658
+========== Warm Start Round 19/100 ===========
+Precision: 0.795062 	 Recall 0.658487
+Obj: 0.0	EQ: nan	IEQ: 53114.58151900768
+========== Warm Start Round 20/100 ===========
+Precision: 0.798005 	 Recall 0.654397
+Obj: 0.0	EQ: nan	IEQ: 54837.06754916906
+========== Warm Start Round 21/100 ===========
+Precision: 0.798005 	 Recall 0.654397
+Obj: 0.0	EQ: nan	IEQ: 56489.637242138386
+========== Warm Start Round 22/100 ===========
+Precision: 0.801980 	 Recall 0.662577
+Obj: 0.0	EQ: nan	IEQ: 58080.284102380276
+========== Warm Start Round 23/100 ===========
+Precision: 0.803970 	 Recall 0.662577
+Obj: 0.0	EQ: nan	IEQ: 59624.003023803234
+========== Warm Start Round 24/100 ===========
+Precision: 0.807980 	 Recall 0.662577
+Obj: 0.0	EQ: nan	IEQ: 61095.05647659302
+========== Warm Start Round 25/100 ===========
+Precision: 0.821883 	 Recall 0.660532
+Obj: 0.0	EQ: nan	IEQ: 62506.95671457052
+========== Warm Start Round 26/100 ===========
+Precision: 0.828645 	 Recall 0.662577
+Obj: 0.0	EQ: nan	IEQ: 63882.7986767292
+========== Warm Start Round 27/100 ===========
+Precision: 0.834625 	 Recall 0.660532
+Obj: 0.0	EQ: nan	IEQ: 65257.139210402966
+========== Warm Start Round 28/100 ===========
+Precision: 0.841969 	 Recall 0.664622
+Obj: 0.0	EQ: nan	IEQ: 66600.08005958796
+========== Warm Start Round 29/100 ===========
+Precision: 0.848958 	 Recall 0.666667
+Obj: 0.0	EQ: nan	IEQ: 67870.69916373491
+========== Warm Start Round 30/100 ===========
+Precision: 0.860892 	 Recall 0.670757
+Obj: 0.0	EQ: nan	IEQ: 69062.01167595387
+========== Warm Start Round 31/100 ===========
+Precision: 0.865789 	 Recall 0.672802
+Obj: 0.0	EQ: nan	IEQ: 70202.10093688965
+========== Warm Start Round 32/100 ===========
+Precision: 0.873351 	 Recall 0.676892
+Obj: 0.0	EQ: nan	IEQ: 71269.0746293068
+========== Warm Start Round 33/100 ===========
+Precision: 0.879265 	 Recall 0.685072
+Obj: 0.0	EQ: nan	IEQ: 72316.59756493568
+========== Warm Start Round 34/100 ===========
+Precision: 0.883598 	 Recall 0.683027
+Obj: 0.0	EQ: nan	IEQ: 73389.66801011562
+========== Warm Start Round 35/100 ===========
+Precision: 0.891247 	 Recall 0.687117
+Obj: 0.0	EQ: nan	IEQ: 74484.93609768152
+========== Warm Start Round 36/100 ===========
+Precision: 0.881748 	 Recall 0.701431
+Obj: 0.0	EQ: nan	IEQ: 75657.24833643436
+========== Warm Start Round 37/100 ===========
+Precision: 0.879795 	 Recall 0.703476
+Obj: 0.0	EQ: nan	IEQ: 76897.0253278017
+========== Warm Start Round 38/100 ===========
+Precision: 0.875949 	 Recall 0.707566
+Obj: 0.0	EQ: nan	IEQ: 78172.29716217518
+========== Warm Start Round 39/100 ===========
+Precision: 0.878412 	 Recall 0.723926
+Obj: 0.0	EQ: nan	IEQ: 79607.63430988789
+========== Warm Start Round 40/100 ===========
+Precision: 0.879012 	 Recall 0.728016
+Obj: 0.0	EQ: nan	IEQ: 81101.86793416739
+========== Warm Start Round 41/100 ===========
+Precision: 0.888889 	 Recall 0.736196
+Obj: 0.0	EQ: nan	IEQ: 82704.45643681288
+========== Warm Start Round 42/100 ===========
+Precision: 0.894349 	 Recall 0.744376
+Obj: 0.0	EQ: nan	IEQ: 84391.28247231245
+========== Warm Start Round 43/100 ===========
+Precision: 0.899015 	 Recall 0.746421
+Obj: 0.0	EQ: nan	IEQ: 86195.10418653488
+========== Warm Start Round 44/100 ===========
+Precision: 0.901720 	 Recall 0.750511
+Obj: 0.0	EQ: nan	IEQ: 88115.66095209122
+========== Warm Start Round 45/100 ===========
+Precision: 0.901961 	 Recall 0.752556
+Obj: 0.0	EQ: nan	IEQ: 90137.29956907034
+========== Warm Start Round 46/100 ===========
+Precision: 0.900485 	 Recall 0.758691
+Obj: 0.0	EQ: nan	IEQ: 92253.69503033161
+========== Warm Start Round 47/100 ===========
+Precision: 0.900485 	 Recall 0.758691
+Obj: 0.0	EQ: nan	IEQ: 94490.98254430294
+========== Warm Start Round 48/100 ===========
+Precision: 0.898551 	 Recall 0.760736
+Obj: 0.0	EQ: nan	IEQ: 96774.19700825214
+========== Warm Start Round 49/100 ===========
+Precision: 0.889688 	 Recall 0.758691
+Obj: 0.0	EQ: nan	IEQ: 99169.58066910505
+========== Warm Start Round 50/100 ===========
+Precision: 0.887290 	 Recall 0.756646
+Obj: 0.0	EQ: nan	IEQ: 101591.85852390528
+========== Warm Start Round 51/100 ===========
+Precision: 0.884706 	 Recall 0.768916
+Obj: 0.0	EQ: nan	IEQ: 103992.09353518486
+========== Warm Start Round 52/100 ===========
+Precision: 0.883178 	 Recall 0.773006
+Obj: 0.0	EQ: nan	IEQ: 106430.7116536498
+========== Warm Start Round 53/100 ===========
+Precision: 0.881944 	 Recall 0.779141
+Obj: 0.0	EQ: nan	IEQ: 108901.04381990433
+========== Warm Start Round 54/100 ===========
+Precision: 0.883450 	 Recall 0.775051
+Obj: 0.0	EQ: nan	IEQ: 111289.18573129177
+========== Warm Start Round 55/100 ===========
+Precision: 0.888372 	 Recall 0.781186
+Obj: 0.0	EQ: nan	IEQ: 113665.15938919783
+========== Warm Start Round 56/100 ===========
+Precision: 0.893023 	 Recall 0.785276
+Obj: 0.0	EQ: nan	IEQ: 116014.94196647406
+========== Warm Start Round 57/100 ===========
+Precision: 0.892774 	 Recall 0.783231
+Obj: 0.0	EQ: nan	IEQ: 118395.9874508977
+========== Warm Start Round 58/100 ===========
+Precision: 0.897436 	 Recall 0.787321
+Obj: 0.0	EQ: nan	IEQ: 120726.68539863825
+========== Warm Start Round 59/100 ===========
+Precision: 0.897674 	 Recall 0.789366
+Obj: 0.0	EQ: nan	IEQ: 122999.91237783432
+========== Warm Start Round 60/100 ===========
+Precision: 0.891954 	 Recall 0.793456
+Obj: 0.0	EQ: nan	IEQ: 125185.53360682726
+========== Warm Start Round 61/100 ===========
+Precision: 0.899533 	 Recall 0.787321
+Obj: 0.0	EQ: nan	IEQ: 127387.07797515392
+========== Warm Start Round 62/100 ===========
+Precision: 0.894614 	 Recall 0.781186
+Obj: 0.0	EQ: nan	IEQ: 129667.756662786
+========== Warm Start Round 63/100 ===========
+Precision: 0.895349 	 Recall 0.787321
+Obj: 0.0	EQ: nan	IEQ: 131869.80053955317
+========== Warm Start Round 64/100 ===========
+Precision: 0.894860 	 Recall 0.783231
+Obj: 0.0	EQ: nan	IEQ: 134360.95266020298
+========== Warm Start Round 65/100 ===========
+Precision: 0.891204 	 Recall 0.787321
+Obj: 0.0	EQ: nan	IEQ: 136926.0468197465
+========== Warm Start Round 66/100 ===========
+Precision: 0.895105 	 Recall 0.785276
+Obj: 0.0	EQ: nan	IEQ: 139179.6517007351
+========== Warm Start Round 67/100 ===========
+Precision: 0.895833 	 Recall 0.791411
+Obj: 0.0	EQ: nan	IEQ: 141112.04614257812
+========== Warm Start Round 68/100 ===========
+Precision: 0.895833 	 Recall 0.791411
+Obj: 0.0	EQ: nan	IEQ: 142748.31824290752
+========== Warm Start Round 69/100 ===========
+Precision: 0.900693 	 Recall 0.797546
+Obj: 0.0	EQ: nan	IEQ: 144141.18013763428
+========== Warm Start Round 70/100 ===========
+Precision: 0.897025 	 Recall 0.801636
+Obj: 0.0	EQ: nan	IEQ: 145200.5077739954
+========== Warm Start Round 71/100 ===========
+Precision: 0.903226 	 Recall 0.801636
+Obj: 0.0	EQ: nan	IEQ: 146033.48079693317
+========== Warm Start Round 72/100 ===========
+Precision: 0.905312 	 Recall 0.801636
+Obj: 0.0	EQ: nan	IEQ: 146320.86116558313
+========== Warm Start Round 73/100 ===========
+Precision: 0.909302 	 Recall 0.799591
+Obj: 0.0	EQ: nan	IEQ: 146092.35048770905
+========== Warm Start Round 74/100 ===========
+Precision: 0.912442 	 Recall 0.809816
+Obj: 0.0	EQ: nan	IEQ: 145368.1286523342
+========== Warm Start Round 75/100 ===========
+Precision: 0.918415 	 Recall 0.805726
+Obj: 0.0	EQ: nan	IEQ: 144866.88176470995
+========== Warm Start Round 76/100 ===========
+Precision: 0.909931 	 Recall 0.805726
+Obj: 0.0	EQ: nan	IEQ: 144989.19801080227
+========== Warm Start Round 77/100 ===========
+Precision: 0.913043 	 Recall 0.815951
+Obj: 0.0	EQ: nan	IEQ: 145334.07728409767
+========== Warm Start Round 78/100 ===========
+Precision: 0.907834 	 Recall 0.805726
+Obj: 0.0	EQ: nan	IEQ: 145950.5370889902
+========== Warm Start Round 79/100 ===========
+Precision: 0.904110 	 Recall 0.809816
+Obj: 0.0	EQ: nan	IEQ: 147015.04391413927
+========== Warm Start Round 80/100 ===========
+Precision: 0.893805 	 Recall 0.826176
+Obj: 0.0	EQ: nan	IEQ: 148415.8856191635
+========== Warm Start Round 81/100 ===========
+Precision: 0.883516 	 Recall 0.822086
+Obj: 0.0	EQ: nan	IEQ: 149845.88845056295
+========== Warm Start Round 82/100 ===========
+Precision: 0.866812 	 Recall 0.811861
+Obj: 0.0	EQ: nan	IEQ: 151475.1566964984
+========== Warm Start Round 83/100 ===========
+Precision: 0.851293 	 Recall 0.807771
+Obj: 0.0	EQ: nan	IEQ: 153594.74437767267
+========== Warm Start Round 84/100 ===========
+Precision: 0.837553 	 Recall 0.811861
+Obj: 0.0	EQ: nan	IEQ: 155914.17235451937
+========== Warm Start Round 85/100 ===========
+Precision: 0.835417 	 Recall 0.820041
+Obj: 0.0	EQ: nan	IEQ: 158642.4460453391
+========== Warm Start Round 86/100 ===========
+Precision: 0.826804 	 Recall 0.820041
+Obj: 0.0	EQ: nan	IEQ: 161390.00901132822
+========== Warm Start Round 87/100 ===========
+Precision: 0.825911 	 Recall 0.834356
+Obj: 0.0	EQ: nan	IEQ: 164277.2141932249
+========== Warm Start Round 88/100 ===========
+Precision: 0.826087 	 Recall 0.854806
+Obj: 0.0	EQ: nan	IEQ: 167486.0087044835
+========== Warm Start Round 89/100 ===========
+Precision: 0.824458 	 Recall 0.854806
+Obj: 0.0	EQ: nan	IEQ: 169666.02113127708
+========== Warm Start Round 90/100 ===========
+Precision: 0.822957 	 Recall 0.865031
+Obj: 0.0	EQ: nan	IEQ: 172057.12196874619
+========== Warm Start Round 91/100 ===========
+Precision: 0.837573 	 Recall 0.875256
+Obj: 0.0	EQ: nan	IEQ: 173052.2230848074
+========== Warm Start Round 92/100 ===========
+Precision: 0.842520 	 Recall 0.875256
+Obj: 0.0	EQ: nan	IEQ: 173175.95382881165
+========== Warm Start Round 93/100 ===========
+Precision: 0.854871 	 Recall 0.879346
+Obj: 0.0	EQ: nan	IEQ: 175014.28155761957
+========== Warm Start Round 94/100 ===========
+Precision: 0.853755 	 Recall 0.883436
+Obj: 0.0	EQ: nan	IEQ: 176474.04614156485
+========== Warm Start Round 95/100 ===========
+Precision: 0.858847 	 Recall 0.883436
+Obj: 0.0	EQ: nan	IEQ: 177386.80466884375
+========== Warm Start Round 96/100 ===========
+Precision: 0.856000 	 Recall 0.875256
+Obj: 0.0	EQ: nan	IEQ: 177044.45059996843
+========== Warm Start Round 97/100 ===========
+Precision: 0.847390 	 Recall 0.862986
+Obj: 0.0	EQ: nan	IEQ: 176481.12564253807
+========== Warm Start Round 98/100 ===========
+Precision: 0.850103 	 Recall 0.846626
+Obj: 0.0	EQ: nan	IEQ: 175959.46590071917
+========== Warm Start Round 99/100 ===========
+Precision: 0.847917 	 Recall 0.832311
+Obj: 0.0	EQ: nan	IEQ: 176260.17118698359
+================= Init with feasibility ===================
+EQ: tensor([0.1021], device='cuda:0', dtype=torch.float64)	IEQ: 165925.53882843256
+Obj: tensor([[-0.8323]], device='cuda:0', dtype=torch.float64)	Constrain: tensor([[1.0208e-01],
+        [1.6593e+05]], device='cuda:0', dtype=torch.float64)
+========== Round 0/100 ===========
+Precision: 0.608614 	 Recall 0.664622
+Obj: -0.6462167689161554	IEQ: 0.34347408829174664	EQ: 23131.20897206664
+(val)Precision: 0.625000 	 Recall 0.092025
+========== Round 1/100 ===========
+Precision: 0.584211 	 Recall 0.226994
+Obj: -0.22699386503067484	IEQ: 0.36578947368421044	EQ: 2722.9312549829483
+(val)Precision: 0.627119 	 Recall 0.075665
+========== Round 2/100 ===========
+Precision: 0.670732 	 Recall 0.112474
+Obj: -0.11247443762781185	IEQ: 0.27926829268292674	EQ: 1444.3308327794075
+(val)Precision: 0.622951 	 Recall 0.077710
+========== Round 3/100 ===========
+Precision: 0.485830 	 Recall 0.245399
+Obj: -0.24539877300613497	IEQ: 0.46417004048582994	EQ: 707.8381403982639
+(val)Precision: 0.629032 	 Recall 0.079755
+========== Round 4/100 ===========
+Precision: 0.455947 	 Recall 0.423313
+Obj: -0.4233128834355828	IEQ: 0.4940528634361233	EQ: 699.1381924152374
+(val)Precision: 0.634921 	 Recall 0.081800
+========== Round 5/100 ===========
+Precision: 0.500000 	 Recall 0.400818
+Obj: -0.40081799591002043	IEQ: 0.44999999999999996	EQ: 650.4174169301987
+(val)Precision: 0.634921 	 Recall 0.081800
+========== Round 6/100 ===========
+Precision: 0.526126 	 Recall 0.597137
+Obj: -0.5971370143149284	IEQ: 0.4238738738738739	EQ: 770.6811579763889
+(val)Precision: 0.634921 	 Recall 0.081800
+========== Round 7/100 ===========
+Precision: 0.535484 	 Recall 0.509202
+Obj: -0.50920245398773	IEQ: 0.414516129032258	EQ: 695.7302038669586
+(val)Precision: 0.634921 	 Recall 0.081800
+========== Round 8/100 ===========
+Precision: 0.554779 	 Recall 0.486708
+Obj: -0.4867075664621677	IEQ: 0.3952214452214452	EQ: 704.5389735102654
+(val)Precision: 0.634921 	 Recall 0.081800
+========== Round 9/100 ===========
+Precision: 0.547244 	 Recall 0.568507
+Obj: -0.5685071574642127	IEQ: 0.40275590551181095	EQ: 752.5950523614883
+(val)Precision: 0.634921 	 Recall 0.081800
+========== Round 10/100 ===========
+Precision: 0.502551 	 Recall 0.402863
+Obj: -0.40286298568507156	IEQ: 0.4474489795918367	EQ: 632.1138035655022
+(val)Precision: 0.634921 	 Recall 0.081800
+========== Round 11/100 ===========
+Precision: 0.525157 	 Recall 0.683027
+Obj: -0.6830265848670757	IEQ: 0.42484276729559745	EQ: 814.9728275537491
+(val)Precision: 0.629032 	 Recall 0.079755
+========== Round 12/100 ===========
+Precision: 0.472772 	 Recall 0.390593
+Obj: -0.39059304703476483	IEQ: 0.4772277227722772	EQ: 696.4657454490662
+(val)Precision: 0.629032 	 Recall 0.079755
+========== Round 13/100 ===========
+Precision: 0.561069 	 Recall 0.300613
+Obj: -0.3006134969325153	IEQ: 0.38893129770992363	EQ: 481.2271425127983
+(val)Precision: 0.634921 	 Recall 0.081800
+========== Round 14/100 ===========
+Precision: 0.536082 	 Recall 0.319018
+Obj: -0.31901840490797545	IEQ: 0.41391752577319585	EQ: 473.3106291294098
+(val)Precision: 0.639344 	 Recall 0.079755
+========== Round 15/100 ===========
+Precision: 0.540881 	 Recall 0.527607
+Obj: -0.5276073619631901	IEQ: 0.4091194968553459	EQ: 275.6279916167259
+(val)Precision: 0.650000 	 Recall 0.079755
+========== Round 16/100 ===========
+Precision: 0.507881 	 Recall 0.593047
+Obj: -0.5930470347648262	IEQ: 0.44211908931698773	EQ: 199.5346921980381
+(val)Precision: 0.639344 	 Recall 0.079755
+========== Round 17/100 ===========
+Precision: 0.505821 	 Recall 0.799591
+Obj: -0.7995910020449898	IEQ: 0.4441785252263907	EQ: 175.1437944173813
+(val)Precision: 0.639344 	 Recall 0.079755
+========== Round 18/100 ===========
+Precision: 0.562660 	 Recall 0.449898
+Obj: -0.4498977505112474	IEQ: 0.38734015345268535	EQ: 239.1740412414074
+(val)Precision: 0.639344 	 Recall 0.079755
+========== Round 19/100 ===========
+Precision: 0.550861 	 Recall 0.719836
+Obj: -0.7198364008179959	IEQ: 0.3991392801251956	EQ: 254.01785084605217
+(val)Precision: 0.645161 	 Recall 0.081800
+========== Round 20/100 ===========
+Precision: 0.535758 	 Recall 0.903885
+Obj: -0.9038854805725971	IEQ: 0.4142424242424242	EQ: 137.19864583015442
+(val)Precision: 0.645161 	 Recall 0.081800
+========== Round 21/100 ===========
+Precision: 0.514936 	 Recall 0.740286
+Obj: -0.7402862985685071	IEQ: 0.4350640113798008	EQ: 172.2876777946949
+(val)Precision: 0.639344 	 Recall 0.079755
+========== Round 22/100 ===========
+Precision: 0.540741 	 Recall 0.447853
+Obj: -0.44785276073619634	IEQ: 0.4092592592592592	EQ: 180.96020632982254
+(val)Precision: 0.639344 	 Recall 0.079755
+========== Round 23/100 ===========
+Precision: 0.553130 	 Recall 0.777096
+Obj: -0.7770961145194274	IEQ: 0.3968704512372634	EQ: 200.92320996522903
+(val)Precision: 0.639344 	 Recall 0.079755
+========== Round 24/100 ===========
+Precision: 0.526515 	 Recall 0.568507
+Obj: -0.5685071574642127	IEQ: 0.42348484848484846	EQ: 179.135544359684
+(val)Precision: 0.650000 	 Recall 0.079755
+========== Round 25/100 ===========
+Precision: 0.521595 	 Recall 0.642127
+Obj: -0.6421267893660532	IEQ: 0.4284053156146179	EQ: 141.28372538089752
+(val)Precision: 0.633333 	 Recall 0.077710
+========== Round 26/100 ===========
+Precision: 0.521790 	 Recall 0.905930
+Obj: -0.9059304703476483	IEQ: 0.42820965842167247	EQ: 73.10517138242722
+(val)Precision: 0.633333 	 Recall 0.077710
+========== Round 27/100 ===========
+Precision: 0.565657 	 Recall 0.114519
+Obj: -0.11451942740286299	IEQ: 0.3843434343434343	EQ: 104.90034919977188
+(val)Precision: 0.637931 	 Recall 0.075665
+========== Round 28/100 ===========
+Precision: 0.539809 	 Recall 0.693251
+Obj: -0.6932515337423313	IEQ: 0.4101910828025477	EQ: 141.80136573314667
+(val)Precision: 0.633333 	 Recall 0.077710
+========== Round 29/100 ===========
+Precision: 0.507488 	 Recall 0.623722
+Obj: -0.623721881390593	IEQ: 0.4425124792013311	EQ: 169.93909767270088
+(val)Precision: 0.627119 	 Recall 0.075665
+========== Round 30/100 ===========
+Precision: 0.565327 	 Recall 0.460123
+Obj: -0.4601226993865031	IEQ: 0.38467336683417086	EQ: 222.99834823608398
+(val)Precision: 0.639344 	 Recall 0.079755
+========== Round 31/100 ===========
+Precision: 0.512821 	 Recall 0.777096
+Obj: -0.7770961145194274	IEQ: 0.4371794871794872	EQ: 126.51659607887268
+(val)Precision: 0.612903 	 Recall 0.077710
+========== Round 32/100 ===========
+Precision: 0.548476 	 Recall 0.809816
+Obj: -0.8098159509202454	IEQ: 0.40152354570637117	EQ: 117.01761937141418
+(val)Precision: 0.633333 	 Recall 0.077710
+========== Round 33/100 ===========
+Precision: 0.417476 	 Recall 0.087935
+Obj: -0.08793456032719836	IEQ: 0.5325242718446601	EQ: 64.87799057364464
+(val)Precision: 0.633333 	 Recall 0.077710
+========== Round 34/100 ===========
+Precision: 0.521378 	 Recall 0.897750
+Obj: -0.8977505112474438	IEQ: 0.42862232779097387	EQ: 63.142542123794556
+(val)Precision: 0.639344 	 Recall 0.079755
+========== Round 35/100 ===========
+Precision: 0.608889 	 Recall 0.280164
+Obj: -0.28016359918200406	IEQ: 0.34111111111111103	EQ: 143.1420560479164
+(val)Precision: 0.627119 	 Recall 0.075665
+========== Round 36/100 ===========
+Precision: 0.562130 	 Recall 0.582822
+Obj: -0.5828220858895705	IEQ: 0.38786982248520707	EQ: 133.36837422847748
+(val)Precision: 0.633333 	 Recall 0.077710
+========== Round 37/100 ===========
+Precision: 0.516517 	 Recall 0.703476
+Obj: -0.7034764826175869	IEQ: 0.4334834834834834	EQ: 120.00648832321167
+(val)Precision: 0.616667 	 Recall 0.075665
+========== Round 38/100 ===========
+Precision: 0.531690 	 Recall 0.308793
+Obj: -0.30879345603271985	IEQ: 0.4183098591549296	EQ: 142.85659050941467
+(val)Precision: 0.627119 	 Recall 0.075665
+========== Round 39/100 ===========
+Precision: 0.534063 	 Recall 0.897750
+Obj: -0.8977505112474438	IEQ: 0.4159367396593674	EQ: 80.97675186395645
+(val)Precision: 0.619048 	 Recall 0.079755

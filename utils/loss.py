@@ -153,10 +153,12 @@ class APLoss(nn.Module):
         return self.helper_func.apply(input, target)
     
 class WCE(nn.Module):
-    def __init__(self, npos, nneg):
+    def __init__(self, npos, nneg, device=None):
         super(WCE, self).__init__()
         weights = 1.0/torch.Tensor([nneg, npos])
         weights = weights / torch.amin(weights)
+        if device:
+            weights = weights.to(device)
         self.criterion = nn.CrossEntropyLoss(reduction='mean', weight=weights)
     
     def forward(self, input, target):

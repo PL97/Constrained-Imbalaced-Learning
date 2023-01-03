@@ -17,6 +17,7 @@ from trainer.trainer import trainer_base
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import TensorDataset, DataLoader
 from utils.loss import WCE
+from dataset.sythetic import generate_data
 
 def setup():
     parser = argparse.ArgumentParser()
@@ -63,9 +64,10 @@ if __name__ == "__main__":
     args = setup()
 
     device = torch.device("cuda")
-    X_tensor, y_tenosr, X, y = get_data(name=args.dataset, device=device)
+    # X_tensor, y_tenosr, X, y = get_data(name=args.dataset, device=device)
+    X_tensor, y_tenosr, X, y = generate_data(dimension=2, device=device)
     
-    X_train_tensor, X_tmp_tensor, y_train_tenosr, y_tmp_tensor = train_test_split(X_tensor, \
+    X_train_tensor, X_tmp_tensor, y_train_tensor, y_tmp_tensor = train_test_split(X_tensor, \
                                                       y_tenosr, \
                                                       test_size=0.2, \
                                                       stratify=y_tenosr.cpu().numpy(), \
@@ -79,24 +81,34 @@ if __name__ == "__main__":
     
     
     
-    
     if args.method == "AL":
-        model = MLP(input_dim=X_tensor.shape[1], hidden_dim=100, num_layers=10, output_dim=1)
+        model = MLP(input_dim=X_tensor.shape[1], hidden_dim=100, num_layers=10, output_dim=2)
         model.train()
-        trainer = FPOR(X = X_train_tensor, y = y_train_tenosr, \
+        nneg, npos = np.sum(y==0), np.sum(y==1)
+        criterion = WCE(npos=npos, nneg=nneg, device=device)
+        args.criterion = criterion
+        trainer = FPOR(X = X_train_tensor, y = y_train_tensor, \
                         X_val = X_val_tensor, y_val = y_val_tensor, \
                         device=device, model=model, args=args)
         model = trainer.fit()
+        train_precision, train_recall = trainer.test(X_train_tensor, y_train_tensor)
+        wandb.run.summary["train_precision"] = train_recall
+        wandb.run.summary["train_recall"] = train_precision
+        
+        val_precision, val_recall = trainer.test(X_val_tensor, y_val_tensor)
+        wandb.run.summary["val_precision"] = val_precision
+        wandb.run.summary["val_recall"] = val_recall
+        
         test_precision, test_recall = trainer.test(X_test_tensor, y_test_tensor)
         wandb.run.summary["test_precision"] = test_precision
         wandb.run.summary["test_recall"] = test_recall
         wandb.finish()
     elif args.method == "WCE":
         model = MLP(input_dim=X_tensor.shape[1], hidden_dim=100, num_layers=10, output_dim=2)
-        y_tenosr, y_val_tensor, y_test_tensor = y_tenosr.view(-1).long(), y_val_tensor.view(-1).long(), y_test_tensor.view(-1).long()
+        y_train_tensor, y_val_tensor, y_test_tensor = y_train_tensor.flatten().long(), y_val_tensor.flatten().long(), y_test_tensor.flatten().long()
         nneg, npos = np.sum(y==0), np.sum(y==1)
         criterion = WCE(npos=npos, nneg=nneg)
-        train_loader = DataLoader(TensorDataset(X_tensor, y_tenosr), batch_size=X_tensor.shape[0])
+        train_loader = DataLoader(TensorDataset(X_train_tensor, y_train_tensor), batch_size=X_tensor.shape[0])
         val_loader = DataLoader(TensorDataset(X_val_tensor, y_val_tensor), batch_size=X_val_tensor.shape[0])
         test_loader = DataLoader(TensorDataset(X_test_tensor, y_test_tensor), batch_size=X_test_tensor.shape[0])
         
@@ -118,16 +130,24 @@ if __name__ == "__main__":
                             accelerator="gpu", 
                             devices=1, 
                             strategy = DDPStrategy(find_unused_parameters=False),
-                            # log_every_n_steps=20,
+                            log_every_n_steps=1,
                             auto_scale_batch_size=True,
                             logger=wandb_logger)
         
-        MyLightningModule = trainer_base(X = X_train_tensor, y = y_train_tenosr, \
-                        X_val = X_val_tensor, y_val = y_val_tensor, \
+        MyLightningModule = trainer_base(
                         model=model, criterion=criterion, args=args)
         trainer.fit(MyLightningModule, \
                     train_dataloaders=train_loader, \
                     val_dataloaders=val_loader)
+        
+        train_precision, train_recall = MyLightningModule.test(X_train_tensor, y_train_tensor)
+        wandb.run.summary["test_precision"] = train_precision
+        wandb.run.summary["test_recall"] = train_recall
+        
+        val_precision, val_recall = MyLightningModule.test(X_val_tensor, y_val_tensor)
+        wandb.run.summary["test_precision"] = val_precision
+        wandb.run.summary["test_recall"] = val_recall
+        
         test_precision, test_recall = MyLightningModule.test(X_test_tensor, y_test_tensor)
         wandb.run.summary["test_precision"] = test_precision
         wandb.run.summary["test_recall"] = test_recall
