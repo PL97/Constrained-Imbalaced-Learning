@@ -133,11 +133,14 @@ class FPOR(AL_base):
         criterion = nn.BCELoss()
         # criterion = nn.BCEWithLogitsLoss()
         for _ in range(self.warm_start):
+            self.model.train()
+            optim.zero_grad()
             L = criterion(self.model(self.X), self.y)
             L.backward()
             optim.step()
             
             with torch.no_grad():
+                self.model.eval()
                 prediction = (self.model(self.X).detach().cpu().numpy() > self.t).astype(int)
                 TP = int(prediction.T@(self.y.detach().cpu().numpy()==1).astype(int))
                 
