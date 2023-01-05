@@ -154,7 +154,7 @@ class FPOR(AL_base):
     
     @torch.no_grad()
     def initialize_with_feasiblity(self, quiet=False):
-        m = nn.Softmax(dim=-1)
+        m = nn.Softmax(dim=1)
         self.s -= self.s
         self.s += (m(self.model(self.X))[:, 1].view(-1, 1) >= self.t).int()
         if not quiet:

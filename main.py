@@ -64,8 +64,8 @@ if __name__ == "__main__":
     args = setup()
 
     device = torch.device("cuda")
-    # X_tensor, y_tenosr, X, y = get_data(name=args.dataset, device=device)
-    X_tensor, y_tenosr, X, y = generate_data(dimension=2, device=device)
+    X_tensor, y_tenosr, X, y = get_data(name=args.dataset, device=device)
+    # X_tensor, y_tenosr, X, y = generate_data(dimension=2, device=device)
     
     X_train_tensor, X_tmp_tensor, y_train_tensor, y_tmp_tensor = train_test_split(X_tensor, \
                                                       y_tenosr, \
