@@ -27,7 +27,7 @@ def get_data(name='adult', device=None):
 
 class UCI_dataset(Dataset):
     def __init__(self, X, y):
-        if isinstance(X, torch.tensor):
+        if isinstance(X, torch.Tensor):
             self.X, self.y = X, y
         else:
             self.X, self.y = torch.from_numpy(X), torch.from_numpy(y)
@@ -38,4 +38,12 @@ class UCI_dataset(Dataset):
     def __getitem__(self, index):
         return index, self.X[index], self.y[index]
     
-        
+
+
+if __name__ == "__main__":
+    from torch.utils.data import DataLoader
+    t_X, t_y, X, y = get_data()
+    ds = DataLoader(UCI_dataset(X, y), batch_size=10)
+    for i, tmp_X, tmp_y in ds:
+        print(i, tmp_X, tmp_y)
+        asdf
