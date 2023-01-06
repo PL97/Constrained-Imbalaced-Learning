@@ -27,7 +27,7 @@ def setup():
     parser.add_argument('--run_name', type=str, default="AL_trail1")
     parser.add_argument('--model', type=str, default="MLP")
     parser.add_argument('--learning_rate', type=float, default=1e-4)
-    parser.add_argument('--method', type=str, default="AL")
+    parser.add_argument('--method', type=str, default="WCE")
     parser.add_argument('--batch_size', type=int, default=50)
     
     
@@ -59,6 +59,21 @@ def setup():
         os.makedirs(args.workspace, exist_ok=True)
     return args
 
+def pytorchlightning_wandb_setup(args):
+    wandb_logger = WandbLogger(project="FPOR", \
+                                name=args.run_name, \
+                                save_dir=args.workspace)
+    wandb_logger.experiment.config.update({
+        'dataset': args.dataset, \
+        'rounds': args.rounds, \
+        'lr': args.learning_rate, \
+        'solver': "AdamW"
+    })
+    wandb_logger.watch(model, log="all")
+    wandb.define_metric("train/*", step_metric="trainer/global_step")
+    wandb.define_metric("val/*", step_metric="trainer/global_step")
+    return wandb_logger
+
 
 if __name__ == "__main__":
     
@@ -83,64 +98,49 @@ if __name__ == "__main__":
                         device=device, model=model, args=args)
         model = trainer.fit()
         train_precision, train_recall = trainer.test(trainloader)
-        wandb.run.summary["train_precision"] = train_recall
-        wandb.run.summary["train_recall"] = train_precision
-        
         val_precision, val_recall = trainer.test(valloader)
-        wandb.run.summary["val_precision"] = val_precision
-        wandb.run.summary["val_recall"] = val_recall
-        
         test_precision, test_recall = trainer.test(testloader)
-        wandb.run.summary["test_precision"] = test_precision
-        wandb.run.summary["test_recall"] = test_recall
+        
+        
+        wandb.run.summary.update({"train_precision": train_precision, \
+                                  "train_recall": train_recall, \
+                                  "val_precision": val_precision, \
+                                  "val_recall": val_recall, \
+                                  "test_precision": test_precision, \
+                                  "test_recall": test_recall})
         wandb.finish()
     elif args.method == "WCE":
-        y_train_tensor, y_val_tensor, y_test_tensor = y_train_tensor.flatten().long(), y_val_tensor.flatten().long(), y_test_tensor.flatten().long()
-        nneg, npos = np.sum(y==0), np.sum(y==1)
-        criterion = WCE(npos=npos, nneg=nneg)
-        train_loader = DataLoader(TensorDataset(X_train_tensor, y_train_tensor), batch_size=X_tensor.shape[0])
-        val_loader = DataLoader(TensorDataset(X_val_tensor, y_val_tensor), batch_size=X_val_tensor.shape[0])
-        test_loader = DataLoader(TensorDataset(X_test_tensor, y_test_tensor), batch_size=X_test_tensor.shape[0])
-        
-        wandb_logger = WandbLogger(project="FPOR", \
-                                   name=args.run_name, \
-                                   save_dir=args.workspace)
-        max_epochs = args.rounds
-        wandb_logger.experiment.config.update({
-            'dataset': args.dataset, \
-            'rounds': max_epochs, \
-            'lr': args.learning_rate, \
-            'solver': "AdamW"
-        })
-        wandb_logger.watch(model, log="all")
-        wandb.define_metric("train/*", step_metric="trainer/global_step")
-        wandb.define_metric("val/*", step_metric="trainer/global_step")
-        args.wandb_logger = wandb_logger
-        trainer = pl.Trainer(max_epochs=max_epochs, 
+        criterion = WCE(npos=stats["label_distribution"][1], nneg=stats["label_distribution"][0])
+        trainloader.dataset.set_ret_idx(ret=False)
+        valloader.dataset.set_ret_idx(ret=False)
+        testloader.dataset.set_ret_idx(ret=False)
+
+        args.wandb_logger = pytorchlightning_wandb_setup(args=args)
+        trainer = pl.Trainer(max_epochs=args.rounds, 
                             accelerator="gpu", 
                             devices=1, 
                             strategy = DDPStrategy(find_unused_parameters=False),
                             log_every_n_steps=1,
                             auto_scale_batch_size=True,
-                            logger=wandb_logger)
+                            logger=args.wandb_logger)
         
         MyLightningModule = trainer_base(
                         model=model, criterion=criterion, args=args)
         trainer.fit(MyLightningModule, \
-                    train_dataloaders=train_loader, \
-                    val_dataloaders=val_loader)
+                    train_dataloaders=trainloader, \
+                    val_dataloaders=valloader)
+        exit()
         
-        train_precision, train_recall = MyLightningModule.test(X_train_tensor, y_train_tensor)
-        wandb.run.summary["test_precision"] = train_precision
-        wandb.run.summary["test_recall"] = train_recall
+        train_precision, train_recall = MyLightningModule.test(trainloader)
+        val_precision, val_recall = MyLightningModule.test(valloader)
+        test_precision, test_recall = MyLightningModule.test(testloader)
         
-        val_precision, val_recall = MyLightningModule.test(X_val_tensor, y_val_tensor)
-        wandb.run.summary["test_precision"] = val_precision
-        wandb.run.summary["test_recall"] = val_recall
-        
-        test_precision, test_recall = MyLightningModule.test(X_test_tensor, y_test_tensor)
-        wandb.run.summary["test_precision"] = test_precision
-        wandb.run.summary["test_recall"] = test_recall
+        wandb.run.summary.update({"train_precision": train_precision, \
+                                  "train_recall": train_recall, \
+                                  "val_precision": val_precision, \
+                                  "val_recall": val_recall, \
+                                  "test_precision": test_precision, \
+                                  "test_recall": test_recall})
         wandb.finish()
 
     else:

@@ -18,13 +18,19 @@ class UCI_dataset(Dataset):
             self.X, self.y = X, y
         else:
             self.X, self.y = torch.from_numpy(X), torch.from_numpy(y)
+        self.set_ret_idx(ret=True)
     
     def __len__(self):        
         return self.X.shape[0]
     
-    def __getitem__(self, index):
-        return index, self.X[index], self.y[index]
+    def set_ret_idx(self, ret):
+        self.ret_idx = ret
     
+    def __getitem__(self, index):
+        if self.ret_idx:
+            return index, self.X[index], self.y[index]
+        else:
+            return self.X[index], self.y[index]
   
 
 def get_data(name='adult', batch_size=10, random_seed=1997):

@@ -14,8 +14,8 @@ class trainer_base(pl.LightningModule):
         self.model = model
         self.criterion = criterion
         
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, X):
+        return self.model(X)
     
     def configure_optimizers(self):
         optimizer = AdamW([
@@ -24,8 +24,9 @@ class trainer_base(pl.LightningModule):
         return optimizer
     
     def training_step(self, batch, batch_idx):
-        x, y = batch
-        pred = self.model(x)
+        X, y = batch
+        y = y.view(-1).long()
+        pred = self.model(X)
         loss = self.criterion(pred, y)
         self.log("train/loss", loss)
         return {'loss': loss, 'preds': pred, 'target': y}
@@ -37,8 +38,9 @@ class trainer_base(pl.LightningModule):
     @torch.no_grad()
     def test_step(self, batch, batch_idx):
         # this is the test loop
-        x, y = batch
-        pred = self.model(x)
+        X, y = batch
+        y = y.view(-1).long()
+        pred = self.model(X)
         loss = self.criterion(pred, y)
         self.log("test/loss", loss)
         return {'loss': loss, 'preds': pred, 'target': y}
@@ -47,10 +49,11 @@ class trainer_base(pl.LightningModule):
     @torch.no_grad()
     def validation_step(self, batch, batch_idx):
         # this is the validation loop
-        x, y = batch
-        pred = self.model(x)
+        X, y = batch
+        y = y.view(-1).long()
+        pred = self.model(X)
         loss = self.criterion(pred, y)
-        self.log("val/loss", loss)
+        self.log("val/loss", loss, sync_dist=True)
         return {'loss': loss, 'preds': pred, 'target': y}
     
     
@@ -82,8 +85,8 @@ class trainer_base(pl.LightningModule):
         # update and log
         precision = self.cal_precision(preds, target)
         recall = self.cal_recall(preds, target)
-        self.log('train/Precision', precision)
-        self.log('train/Recall', recall)
+        self.log('train/Precision', precision, sync_dist=True)
+        self.log('train/Recall', recall, sync_dist=True)
     
     @torch.no_grad()
     def validation_epoch_end(self, outputs):
@@ -96,18 +99,24 @@ class trainer_base(pl.LightningModule):
         # update and log
         precision = self.cal_precision(preds, target)
         recall = self.cal_recall(preds, target)
-        self.log('val/Precision', precision)
-        self.log('val/Recall', recall)
+        self.log('val/Precision', precision, sync_dist=True)
+        self.log('val/Recall', recall, sync_dist=True)
     
     @torch.no_grad()
-    def test(self, X, y):
+    def test(self, dataloader):
         self.model.eval()
-        self.model = self.model.to(self.device)
-        X, y = X.to(self.device), y.to(self.device)
         m = nn.Softmax(dim=1)
-        prediction = (m(self.model(X))[:, 1].detach().cpu().numpy() >= 0.5).astype(int)
-        TP = int(prediction.T@(y.detach().cpu().numpy()==1).astype(int))
+        prediction = []
+        labels = []
+        for _, X, y in dataloader:
+            X, y = X.to(self.device), y.to(self.device)
+            prediction.extend((m(self.model(X))[:, 1].detach().cpu().numpy() >= 0.5).astype(int))
+            labels.extend(y)
+            
+        prediction = np.stack(prediction, axis=0).reshape(-1, 1)
+        labels = torch.stack(labels, axis=0).detach().cpu().numpy()
+        TP = int(prediction.T@(labels==1).astype(int))
         precision = 1.0*TP/np.sum(prediction)
-        recall = 1.0*TP/torch.sum(y==1)
+        recall = 1.0*TP/np.sum(labels==1)
         return precision, recall
         
