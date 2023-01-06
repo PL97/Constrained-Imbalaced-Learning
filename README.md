@@ -14,7 +14,7 @@ chmod +x run.sh
 
 
 # what is in run.sh
-solve the constrained optimization problem using Augmented Lagrangian method
+solve the constrained optimization problem using the Augmented Lagrangian method
 ```
 python main.py --run_name AL_trail10 \
                 --dataset diabetic \
