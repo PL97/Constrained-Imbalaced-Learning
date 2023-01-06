@@ -1,7 +1,7 @@
 python main.py --run_name AL_trail10 \
-                --dataset magic \
+                --dataset diabetic \
                 --model MLP \
-                --batch_size 200 \
+                --batch_size 100 \
                 --learning_rate 1e-4 \
                 --learning_rate_s 2 \
                 --method AL \

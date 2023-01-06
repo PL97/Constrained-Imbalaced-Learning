@@ -9,7 +9,7 @@ from dataset.UCI import get_data
 from models.MLP import MLP
 import argparse
 import os
-from sklearn.model_selection import train_test_split
+
 import wandb
 import pytorch_lightning as pl
 from pytorch_lightning.strategies.ddp import DDPStrategy
@@ -65,47 +65,36 @@ if __name__ == "__main__":
     args = setup()
 
     device = torch.device("cuda")
-    X_tensor, y_tenosr, X, y = get_data(name=args.dataset, device=device)
+    trainloader, valloader, testloader, stats = get_data(name=args.dataset, \
+                                                        batch_size=args.batch_size, \
+                                                        random_seed=args.random_seed)
+    args.datastats = stats
+    
+    ## for debug and demo
     # X_tensor, y_tenosr, X, y = generate_data(dimension=2, device=device)
     
-    X_train_tensor, X_tmp_tensor, y_train_tensor, y_tmp_tensor = train_test_split(X_tensor, \
-                                                      y_tenosr, \
-                                                      test_size=0.2, \
-                                                      stratify=y_tenosr.cpu().numpy(), \
-                                                      random_state=args.random_seed)
-    X_val_tensor, X_test_tensor, y_val_tensor, y_test_tensor = train_test_split(X_tmp_tensor, \
-                                                      y_tmp_tensor, \
-                                                      test_size=0.5, \
-                                                      stratify=y_tmp_tensor.cpu().numpy(), \
-                                                      random_state=args.random_seed)
-    
-    
-    
+    model = MLP(input_dim=stats['feature_dim'], hidden_dim=100, num_layers=10, output_dim=stats['label_num'])
     
     if args.method == "AL":
-        model = MLP(input_dim=X_tensor.shape[1], hidden_dim=100, num_layers=10, output_dim=2)
-        model.train()
-        nneg, npos = np.sum(y==0), np.sum(y==1)
-        criterion = WCE(npos=npos, nneg=nneg, device=device)
+        criterion = WCE(npos=stats["label_distribution"][1], nneg=stats["label_distribution"][0], device=device)
         args.criterion = criterion
-        trainer = FPOR(X = X_train_tensor, y = y_train_tensor, \
-                        X_val = X_val_tensor, y_val = y_val_tensor, \
+        trainer = FPOR(trainloader, \
+                        valloader, \
                         device=device, model=model, args=args)
         model = trainer.fit()
-        train_precision, train_recall = trainer.test(X_train_tensor, y_train_tensor)
+        train_precision, train_recall = trainer.test(trainloader)
         wandb.run.summary["train_precision"] = train_recall
         wandb.run.summary["train_recall"] = train_precision
         
-        val_precision, val_recall = trainer.test(X_val_tensor, y_val_tensor)
+        val_precision, val_recall = trainer.test(valloader)
         wandb.run.summary["val_precision"] = val_precision
         wandb.run.summary["val_recall"] = val_recall
         
-        test_precision, test_recall = trainer.test(X_test_tensor, y_test_tensor)
+        test_precision, test_recall = trainer.test(testloader)
         wandb.run.summary["test_precision"] = test_precision
         wandb.run.summary["test_recall"] = test_recall
         wandb.finish()
     elif args.method == "WCE":
-        model = MLP(input_dim=X_tensor.shape[1], hidden_dim=100, num_layers=10, output_dim=2)
         y_train_tensor, y_val_tensor, y_test_tensor = y_train_tensor.flatten().long(), y_val_tensor.flatten().long(), y_test_tensor.flatten().long()
         nneg, npos = np.sum(y==0), np.sum(y==1)
         criterion = WCE(npos=npos, nneg=nneg)

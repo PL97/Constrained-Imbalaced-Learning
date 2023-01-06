@@ -14,13 +14,10 @@ class AL_base:
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
     def constrain(self):
         pass
-    
-    def fetchdata(self):
-        return self.X[self.active_set], self.y[self.active_set], 
 
 
     def AL_func(self):
-        X, y = self.fetchdata()
+        X = self.active_set['X']
         X = X.to(self.device)
         return self.objective() + self.ls.T@self.constrain() \
                 + (self.rho/2)* torch.sum(self.constrain()**2)
@@ -29,8 +26,9 @@ class AL_base:
     
     def solve_sub_problem(self): 
         # L-BFGS: closure to clear the gradient, compute loss  and return it
-        for b in self.my_data_sampler:
-            self.active_set = b
+        for idx, X, y in self.trainloader:
+            X, y = X.to(self.device), y.to(self.device)
+            self.active_set = {"X": X, "y": y, "s": self.s[idx]}
 
             self.optim.zero_grad()
             L = self.AL_func()
