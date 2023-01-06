@@ -102,6 +102,8 @@ class FPOR(AL_base):
     
     
     def warmstart(self):
+        """warm start to get a good initialization, empirically this can speedup the convergence and improve the performance
+        """
         optim = AdamW([
                 {'params': self.model.parameters(), 'lr': self.lr}
                 ])
@@ -125,7 +127,9 @@ class FPOR(AL_base):
 
     
     @torch.no_grad()
-    def initialize_with_feasiblity(self, quiet=False):
+    def initialize_with_feasiblity(self):
+        """Another trick that boost the performance, initialize variable s with feasiblity guarantee
+        """
         m = nn.Softmax(dim=1)
         self.s -= self.s
         for idx, X, y in self.trainloader:
@@ -194,6 +198,15 @@ class FPOR(AL_base):
     
     @torch.no_grad()
     def test(self, dataloader):
+        """_summary_
+
+        Args:
+            dataloader (torch.utils.DataLoader): the data that is going to be tested
+
+        Returns:
+            precision: precision of the classificaiton model, defined as TP/(TP+FP)
+            recall: recall of the classificaiton model, defined as TP/(TP+FN)
+        """
         self.model.eval()
         m = nn.Softmax(dim=1)
         prediction = []

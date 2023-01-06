@@ -20,6 +20,8 @@ from utils.loss import WCE
 from dataset.sythetic import generate_data
 
 def setup():
+    """parse arguments in commandline and return a args object
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--random_seed', type=int, default=2)
     parser.add_argument('--workspace', type=str, default="checkpoints/FPOR/")
@@ -60,6 +62,14 @@ def setup():
     return args
 
 def pytorchlightning_wandb_setup(args):
+    """initialize wandb looger
+
+    Args:
+        args (_type_): argurments containing training hyparams
+
+    Returns:
+        wandb_logger: will be used for Pytorch lightning trainer
+    """
     wandb_logger = WandbLogger(project="FPOR", \
                                 name=args.run_name, \
                                 save_dir=args.workspace)
@@ -102,6 +112,7 @@ if __name__ == "__main__":
         test_precision, test_recall = trainer.test(testloader)
         
         
+        ## final evaluation on train, val, and test set
         wandb.run.summary.update({"train_precision": train_precision, \
                                   "train_recall": train_recall, \
                                   "val_precision": val_precision, \
@@ -129,8 +140,9 @@ if __name__ == "__main__":
         trainer.fit(MyLightningModule, \
                     train_dataloaders=trainloader, \
                     val_dataloaders=valloader)
-        exit()
         
+        
+        ## final evaluation on train, val, and test set
         train_precision, train_recall = MyLightningModule.test(trainloader)
         val_precision, val_recall = MyLightningModule.test(valloader)
         test_precision, test_recall = MyLightningModule.test(testloader)

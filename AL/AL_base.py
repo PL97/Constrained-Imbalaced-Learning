@@ -9,14 +9,23 @@ class AL_base:
         
         
     def objective(self):
+        """here to define your objective (minimization form)
+        """
         pass
     
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
     def constrain(self):
+        """here to define your constrains, we conver all constrains into equality constrain
+        """
         pass
 
 
     def AL_func(self):
+        """defines the augmented lagrangian function based on the objective function and constrains
+
+        Returns:
+            augmented lagrangian function
+        """
         X = self.active_set['X']
         X = X.to(self.device)
         return self.objective() + self.ls.T@self.constrain() \
@@ -25,7 +34,8 @@ class AL_base:
     
     
     def solve_sub_problem(self): 
-        # L-BFGS: closure to clear the gradient, compute loss  and return it
+        """solve the sub problem (stochastic)
+        """
         for idx, X, y in self.trainloader:
             X, y = X.to(self.device), y.to(self.device)
             self.active_set = {"X": X, "y": y, "s": self.s[idx]}
@@ -36,10 +46,14 @@ class AL_base:
         self.optim.step()
     
     def update_langrangian_multiplier(self):
+        """update the lagrangian multipler
+        """
         constrain_output = self.constrain()
         self.ls += self.rho*constrain_output
     
     def fit(self):
+        """solve the constrained problem, in each round we iterativly solve the sub problem and update the lagrangian multiplier
+        """
         for _ in range(self.rounds):
             for _ in range(self.subprob_max_epoch):
                 self.solve_sub_problem()
