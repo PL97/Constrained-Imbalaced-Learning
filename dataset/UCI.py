@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from collections import Counter
 import torch
-
+from torch.utils.data import Dataset
 
 
 def random_split(df, r=0.1):
@@ -23,6 +23,19 @@ def get_data(name='adult', device=None):
     y = y.astype(np.float32).reshape(-1, 1)
     
     return torch.from_numpy(X).to(device), torch.from_numpy(y).to(device), X, y
+
+
+class UCI_dataset(Dataset):
+    def __init__(self, X, y):
+        if isinstance(X, torch.tensor):
+            self.X, self.y = X, y
+        else:
+            self.X, self.y = torch.from_numpy(X), torch.from_numpy(y)
     
+    def __len__(self):        
+        return self.X.shape[0]
+    
+    def __getitem__(self, index):
+        return index, self.X[index], self.y[index]
     
         
