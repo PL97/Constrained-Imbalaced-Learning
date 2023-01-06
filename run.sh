@@ -1,6 +1,7 @@
 python main.py --run_name AL_trail10 \
                 --dataset magic \
                 --model MLP \
+                --batch_size 200 \
                 --learning_rate 1e-4 \
                 --learning_rate_s 2 \
                 --method AL \
@@ -9,9 +10,10 @@ python main.py --run_name AL_trail10 \
                 --alpha 0.99 \
                 --t 0.5 \
                 --solver AdamW \
-                --warm_start 200 \
+                --warm_start 10 \
                 --rho 1 \
                 --delta 1
+
                 
 
 # python main.py --run_name WCE_trail1 \

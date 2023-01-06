@@ -4,6 +4,7 @@ from collections import Counter
 import torch
 
 
+
 def random_split(df, r=0.1):
     idx = list(range(df.shape[0]))
     np.random.shuffle(idx)
@@ -23,3 +24,5 @@ def get_data(name='adult', device=None):
     
     return torch.from_numpy(X).to(device), torch.from_numpy(y).to(device), X, y
     
+    
+        

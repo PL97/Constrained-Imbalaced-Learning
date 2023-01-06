@@ -28,6 +28,7 @@ def setup():
     parser.add_argument('--model', type=str, default="MLP")
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--method', type=str, default="AL")
+    parser.add_argument('--batch_size', type=int, default=50)
     
     
     ## for AL method only
@@ -36,7 +37,7 @@ def setup():
     parser.add_argument('--alpha', type=float, default=0.95)
     parser.add_argument('--t', type=float, default=0.5)
     parser.add_argument('--solver', type=str, default="AdamW")
-    parser.add_argument('--warm_start', type=int, default=1000)
+    parser.add_argument('--warm_start', type=int, default=10)
     parser.add_argument('--learning_rate_s', type=float, default=1)
     parser.add_argument('--delta', type=float, default=1)
     parser.add_argument('--rho', type=float, default=10)

@@ -7,7 +7,7 @@ def generate_data(dimension = 10, device=None):
     # Create a simulated 10-dimensional training dataset consisting of 1000 labeled
     # examples, of which 800 are labeled correctly and 200 are mislabeled.
     num_examples = 1000
-    num_mislabeled_examples = 200
+    num_mislabeled_examples = 100
 
     # Create random "ground truth" parameters for a linear model.
     ground_truth_weights = np.random.normal(size=dimension) / math.sqrt(dimension)

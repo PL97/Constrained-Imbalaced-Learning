@@ -1,6 +1,5 @@
 
 import torch
-import wandb
 
 class AL_base:
     @torch.no_grad()
@@ -15,36 +14,32 @@ class AL_base:
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
     def constrain(self):
         pass
+    
+    def fetchdata(self):
+        return self.X[self.active_set], self.y[self.active_set], 
+
 
     def AL_func(self):
-        self.model.to(self.device)
-        self.X = self.X.to(self.device)
+        X, y = self.fetchdata()
+        X = X.to(self.device)
         return self.objective() + self.ls.T@self.constrain() \
                 + (self.rho/2)* torch.sum(self.constrain()**2)
     
     
     
-    def solve_sub_problem(self):
+    def solve_sub_problem(self): 
         # L-BFGS: closure to clear the gradient, compute loss  and return it
-        def closure():
+        for b in self.my_data_sampler:
+            self.active_set = b
+
             self.optim.zero_grad()
             L = self.AL_func()
             L.backward()
-            return L
-        
-        if self.solver == "LBFGS":
-            self.optim.step(closure)
-        else:
-            self.optim.zero_grad(set_to_none=True)
-            L = self.AL_func()
-            L.backward()
-            self.optim.step()
+        self.optim.step()
     
     def update_langrangian_multiplier(self):
         constrain_output = self.constrain()
         self.ls += self.rho*constrain_output
-        # for idx, c in enumerate(constrain_output):
-        #     self.ls[idx] += self.rho * c
     
     def fit(self):
         for _ in range(self.rounds):
