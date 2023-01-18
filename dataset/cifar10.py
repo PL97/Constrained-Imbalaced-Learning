@@ -1,96 +1,82 @@
-from cProfile import label
-from distutils.command.install_egg_info import safe_name
-import os, random, time, copy
-from cv2 import sort
-from skimage import io, transform
 import numpy as np
-import os.path as path
-import scipy.io as sio
-from scipy import misc
-import matplotlib.pyplot as plt
-import PIL.Image
-import pickle
-import skimage.transform 
-
+import pandas as pd
+from collections import Counter
 import torch
 from torch.utils.data import Dataset, DataLoader
-import torch.nn as nn
-import torch.optim as optim
-from torch.optim import lr_scheduler 
-import torch.nn.functional as F
-from torch.autograd import Variable
-from torch.utils.data import random_split
-
+from sklearn.model_selection import train_test_split
 import torchvision
-from torchvision import datasets, models, transforms
-from torch.utils.data.dataset import Subset
-
-from PIL import Image
-from kmeans_pytorch import kmeans
-from collections import defaultdict
-from collections import Counter
-
-from utils.utils import one_hot_embedding, pseudo_labeling
-from torch.utils.data.sampler import Sampler
+import pickle
+import os
+from torchvision import transforms
 
 
-import sys
-sys.path.append("../")
-sys.path.append("./")
-from configs.config import init, finish, print_and_log
-from datasets.base_dataset import Base_32_dataset, train_test_split
+class Cifar10(Dataset):
+    def __init__(self, X, y, mode="val"):
+        """Cifar10 dataset instance
 
+        Args:
+            X (numpy array or tensor): features
+            y (numpy array or tensor): labels
+            mode (str): train or val
+        """
+        self.mode = mode
+        X, y = np.asarray(X), np.asarray(y)
+        if isinstance(X, torch.Tensor):
+            self.X, self.y = X, y
+        else:
+            self.X, self.y = torch.from_numpy(X), torch.from_numpy(y)
+        self.set_ret_idx(ret=True)
+        
+        mean = (0.485, 0.456, 0.406)
+        std = (0.229, 0.224, 0.225)
+         
+        self.transform = {"train": transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ]),
+        "val": transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ])}
+    
+    def __len__(self):        
+        return self.X.shape[0]
+    
+    def set_ret_idx(self, ret):
+        self.ret_idx = ret
+    
+    def __getitem__(self, index):
+        transformed_X = self.transform[self.mode](self.X[index])
+        if self.ret_idx:
+            return index, transformed_X, self.y[index]
+        else:
+            return transformed_X, self.y[index]
+        
+def load_cifar10_test():
+    """read and load cifar10 test data
 
-class StratifiedSampler(Sampler):
-    """Stratified Sampling
-    Provides equal representation of target classes in each batch
+    Returns:
+        tuple: lists of images and labels
     """
-    def __init__(self, class_vector, batch_size):
-        """
-        Arguments
-        ---------
-        class_vector : torch tensor
-            a vector of class labels
-        batch_size : integer
-            batch_size
-        """
-        self.n_splits = int(class_vector.size(0) / batch_size)
-        self.class_vector = class_vector
-        
-
-    def gen_sample_array(self):
-        try:
-            from sklearn.model_selection import StratifiedShuffleSplit
-        except:
-            print('Need scikit-learn for this functionality')
-        import numpy as np
-        
-        s = StratifiedShuffleSplit(n_splits=self.n_splits, test_size=0.5)
-        X = torch.randn(self.class_vector.size(0),2).numpy()
-        y = self.class_vector.numpy()
-        s.get_n_splits(X, y)
-
-        train_index, test_index = next(s.split(X, y))
-        return np.hstack([train_index, test_index])
-
-    def __iter__(self):
-        return iter(self.gen_sample_array())
-
-    def __len__(self):
-        return len(self.class_vector)
-
-
-class CIFAR10(Base_32_dataset):
-    pass
-
-
-def unpickle(file):
-    import pickle
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-    return dict
-
+    setname = 'test_batch'
+    path_to_DB = "../data/cifar-10-batches-py/"
+    with open(os.path.join(path_to_DB, setname), 'rb') as obj:
+        DATA = pickle.load(obj, encoding='bytes')
+    imgList = DATA[b'data'].reshape((DATA[b'data'].shape[0],3, 32,32))
+    labelList = DATA[b'labels']
+    return imgList, labelList    
+    
+    
 def load_cifar10_train():
+    """read and load cifar10 train dataset
+
+    Returns:
+        tuple: lists of images, labels and labelnames
+    """
     _ = torchvision.datasets.CIFAR10(root='../data/', train=True, download=True)
     path_to_DB = "../data/cifar-10-batches-py/"
 
@@ -113,81 +99,51 @@ def load_cifar10_train():
         labelList.extend(DATA[b'labels'])
     return imgList, labelList, labelnames
 
-def load_cifar10_test():
-    setname = 'test_batch'
+def get_data(batch_size=10, random_seed=1997, binary_pos=0):
+    _ = torchvision.datasets.CIFAR10(root='../data/', train=True, download=True)
     path_to_DB = "../data/cifar-10-batches-py/"
-    with open(os.path.join(path_to_DB, setname), 'rb') as obj:
-        DATA = pickle.load(obj, encoding='bytes')
-    imgList = DATA[b'data'].reshape((DATA[b'data'].shape[0],3, 32,32))
-    labelList = DATA[b'labels']
-    return imgList, labelList
-
-
-def get_cifar10_dataloader(ctx, val=False, testonly=False):
-    imgList, labelList, labelNames = load_cifar10_train()
-
-    if ctx['debug']:
-        idx = list(range(len(labelList)))
-        imgList = np.asarray(imgList)
-        labelList = np.asarray(labelList)
-        np.random.shuffle(idx)
-        imgList = imgList[idx[:500]]
-        labelList = labelList[idx[:500]]
-
-    if ctx['dataset']['binary']:
-        labelList = [0 if l != ctx['dataset']['idx'] else 1 for l in labelList]
-
-
-
-    train_ctx = ctx['train_config']
-    cifar10_train = CIFAR10(imageList=imgList, labelList=labelList, ctx=ctx,
-        pseudo_only=(not ctx['model']['multi_head'] and ctx['dataset']['pseudolabel']['on']),
-        set_name="train",onehot=(train_ctx['loss']=='Huber' or train_ctx['loss']=='Max'or train_ctx['loss']=="AP"))
-
-
-    counter_dict = Counter(labelList)
-    label_freq = [counter_dict[k] for k in range(len(set(labelList)))]
-    cifar10_train.label_freq = label_freq
-
-
-
-    imgList, labelList = load_cifar10_test()
-
-
-    if ctx['dataset']['binary']:
-        labelList = [0 if l != ctx['dataset']['idx'] else 1 for l in labelList]
-
-
-    cifar10_test = CIFAR10(imageList=imgList, labelList=labelList, ctx=ctx,
-        pseudo_only=(not ctx['model']['multi_head'] and ctx['dataset']['pseudolabel']['on']),
-        set_name="val",onehot=(train_ctx['loss']=='Huber' or train_ctx['loss']=='Max'or train_ctx['loss']=="AP"))
-
-    cifar10_test.label_freq = label_freq
-
-
-    if val:
-        trainloader, valloader = train_test_split(cifar10_train, ctx=ctx, ratio=0.1)
-    else:
-        trainloader = torch.utils.data.DataLoader(cifar10_train,
-                                            batch_size=ctx['train_config']['bs'],
-                                            shuffle=True,
-                                            num_workers=32)
     
-    testloader = torch.utils.data.DataLoader(cifar10_test,
-                                            batch_size=ctx['train_config']['bs'],
-                                            shuffle=False,
-                                            num_workers=32)
-    dls = {}
-    dls['train'] = trainloader
-    dls['val'] = valloader if val else None
-    dls['test'] = testloader
+    imgList, labelList, labelNames = load_cifar10_train()
+    labelList = np.asarray([0 if l != binary_pos else 1 for l in labelList])
+    
+    ## split train data into train and val
+    imgList_train, imgList_val, labelList_train, labelList_val = train_test_split(imgList, \
+                                                      labelList, \
+                                                      test_size=0.2, \
+                                                      stratify=labelList, \
+                                                      random_state=random_seed)
+    
+    imgList_test, labelList_test = load_cifar10_test()
+    labelList_test = np.asarray([0 if l != binary_pos else 1 for l in labelList])
+    
+    stats = {
+        'feature_dim': (3, 32, 32), \
+        'label_num': len(np.unique(labelList)), \
+        'total_num': labelList.shape[0], \
+        'train_num': labelList_train.shape[0],\
+        'test_num': labelList_test.shape[0], \
+        'val_num': labelList_val.shape[0], \
+        'label_distribution': Counter(labelList)
+    }
 
-
-    return dls
-
-
+    trainloader = DataLoader(Cifar10(X=imgList_train, y=labelList_train), \
+                            batch_size=batch_size, \
+                            shuffle=True, \
+                            num_workers=8)
+    
+    valloader = DataLoader(Cifar10(X=imgList_val, y=labelList_val), \
+                            batch_size=batch_size, \
+                            shuffle=False, \
+                            num_workers=8) 
+    
+    testloader = DataLoader(Cifar10(X=imgList_test, y=labelList_test), \
+                            batch_size=batch_size, \
+                            shuffle=False, \
+                            num_workers=8) 
+    
+    return trainloader, valloader, testloader, stats
 
 
 if __name__ == "__main__":
-    ctx = init()
-    get_cifar10_dataloader(ctx)
+    train, val, test, stats = get_data(batch_size=10, random_seed=1997, binary_pos=0)
+    print(stats)
