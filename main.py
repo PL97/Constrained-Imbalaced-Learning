@@ -18,19 +18,20 @@ from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import TensorDataset, DataLoader
 from utils.loss import WCE
 from dataset.sythetic import generate_data
+from torch.profiler import profile, record_function, ProfilerActivity
 
 def setup():
     """parse arguments in commandline and return a args object
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--random_seed', type=int, default=2)
+    parser.add_argument('--random_seed', type=int, default=1997)
     parser.add_argument('--workspace', type=str, default="checkpoints/FPOR/")
     parser.add_argument('--dataset', type=str, default="diabetic")
     parser.add_argument('--run_name', type=str, default="AL_trail1")
     parser.add_argument('--model', type=str, default="MLP")
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--method', type=str, default="WCE")
-    parser.add_argument('--batch_size', type=int, default=50)
+    parser.add_argument('--batch_size', type=int, default=100)
     
     
     ## for AL method only
@@ -93,6 +94,7 @@ if __name__ == "__main__":
     trainloader, valloader, testloader, stats = get_data(name=args.dataset, \
                                                         batch_size=args.batch_size, \
                                                         random_seed=args.random_seed)
+    
     args.datastats = stats
     
     ## for debug and demo
@@ -106,20 +108,26 @@ if __name__ == "__main__":
         trainer = FPOR(trainloader, \
                         valloader, \
                         device=device, model=model, args=args)
+        
         model = trainer.fit()
+        # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+        #     model = trainer.fit()
+        # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+        
+        
         train_precision, train_recall = trainer.test(trainloader)
         val_precision, val_recall = trainer.test(valloader)
         test_precision, test_recall = trainer.test(testloader)
         
         
         ## final evaluation on train, val, and test set
-        wandb.run.summary.update({"train_precision": train_precision, \
-                                  "train_recall": train_recall, \
-                                  "val_precision": val_precision, \
-                                  "val_recall": val_recall, \
-                                  "test_precision": test_precision, \
-                                  "test_recall": test_recall})
-        wandb.finish()
+        # wandb.run.summary.update({"train_precision": train_precision, \
+        #                           "train_recall": train_recall, \
+        #                           "val_precision": val_precision, \
+        #                           "val_recall": val_recall, \
+        #                           "test_precision": test_precision, \
+        #                           "test_recall": test_recall})
+        # wandb.finish()
     elif args.method == "WCE":
         criterion = WCE(npos=stats["label_distribution"][1], nneg=stats["label_distribution"][0])
         trainloader.dataset.set_ret_idx(ret=False)

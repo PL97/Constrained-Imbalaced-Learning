@@ -38,24 +38,22 @@ class trainer_base(pl.LightningModule):
     @torch.no_grad()
     def test_step(self, batch, batch_idx):
         # this is the test loop
-        X, y = batch
-        y = y.view(-1).long()
-        pred = self.model(X)
-        loss = self.criterion(pred, y)
-        self.log("test/loss", loss)
-        return {'loss': loss, 'preds': pred, 'target': y}
+        return self._shared_eval(batch=batch, batch_idx=batch_idx, prefix="test")
         
     
     @torch.no_grad()
     def validation_step(self, batch, batch_idx):
         # this is the validation loop
+        return self._shared_eval(batch=batch, batch_idx=batch_idx, prefix="val")
+    
+    @torch.no_grad()
+    def _shared_eval(self, batch, batch_idx, prefix):
         X, y = batch
         y = y.view(-1).long()
         pred = self.model(X)
         loss = self.criterion(pred, y)
-        self.log("val/loss", loss, sync_dist=True)
+        self.log(f"{prefix}/loss", loss, sync_dist=True)
         return {'loss': loss, 'preds': pred, 'target': y}
-    
     
     ## define a set of metrics
     def cal_precision(self, pred, y):
@@ -75,7 +73,7 @@ class trainer_base(pl.LightningModule):
         return recall
         
     @torch.no_grad()
-    def training_epoch_end(self, outputs):
+    def _shared_epoch_end(self, outputs, prefix):
         preds, target = [], []
         for out in outputs:
             preds.append(out['preds'])
@@ -85,22 +83,16 @@ class trainer_base(pl.LightningModule):
         # update and log
         precision = self.cal_precision(preds, target)
         recall = self.cal_recall(preds, target)
-        self.log('train/Precision', precision, sync_dist=True)
-        self.log('train/Recall', recall, sync_dist=True)
+        self.log(f'{prefix}/Precision', precision, sync_dist=True)
+        self.log(f'{prefix}/Recall', recall, sync_dist=True)
+        
+    @torch.no_grad()
+    def training_epoch_end(self, outputs):
+        return self._shared_epoch_end(outputs, prefix="train")
     
     @torch.no_grad()
     def validation_epoch_end(self, outputs):
-        preds, target = [], []
-        for out in outputs:
-            preds.append(out['preds'])
-            target.append(out['target'])
-        preds = torch.cat(preds)
-        target = torch.cat(target)
-        # update and log
-        precision = self.cal_precision(preds, target)
-        recall = self.cal_recall(preds, target)
-        self.log('val/Precision', precision, sync_dist=True)
-        self.log('val/Recall', recall, sync_dist=True)
+        return self._shared_epoch_end(outputs, prefix="val")
     
     @torch.no_grad()
     def test(self, dataloader):
@@ -108,7 +100,7 @@ class trainer_base(pl.LightningModule):
         m = nn.Softmax(dim=1)
         prediction = []
         labels = []
-        for _, X, y in dataloader:
+        for X, y in dataloader:
             X, y = X.to(self.device), y.to(self.device)
             prediction.extend((m(self.model(X))[:, 1].detach().cpu().numpy() >= 0.5).astype(int))
             labels.extend(y)

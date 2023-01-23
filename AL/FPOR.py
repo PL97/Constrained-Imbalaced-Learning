@@ -43,30 +43,30 @@ class FPOR(AL_base):
         
         
         ## track hyparam
-        self.wandb_run = wandb.init(project='debug', \
-                   name=self.args.run_name, \
-                   dir = self.args.workspace, \
-                   config={
-                    'dataset': self.args.dataset, \
-                    'subprob_max_epoch': self.subprob_max_epoch, \
-                    'rounds': self.rounds, \
-                    'lr': self.lr, \
-                    'lr_s': self.lr_s, \
-                    'alpha': self.alpha, \
-                    't': self.t, \
-                    'solver': self.solver, \
-                    'warm_start': self.warm_start, \
-                    'rho': self.rho, \
-                    'delta': self.delta
-                   })
-        wandb.define_metric("trainer/global_step")
-        wandb.define_metric("train/*", step_metric="trainer/global_step")
-        wandb.define_metric("val/*", step_metric="trainer/global_step")
+        # self.wandb_run = wandb.init(project='FPOR', \
+        #            name=self.args.run_name, \
+        #            dir = self.args.workspace, \
+        #            config={
+        #             'dataset': self.args.dataset, \
+        #             'subprob_max_epoch': self.subprob_max_epoch, \
+        #             'rounds': self.rounds, \
+        #             'lr': self.lr, \
+        #             'lr_s': self.lr_s, \
+        #             'alpha': self.alpha, \
+        #             't': self.t, \
+        #             'solver': self.solver, \
+        #             'warm_start': self.warm_start, \
+        #             'rho': self.rho, \
+        #             'delta': self.delta
+        #            })
+        # wandb.define_metric("trainer/global_step")
+        # wandb.define_metric("train/*", step_metric="trainer/global_step")
+        # wandb.define_metric("val/*", step_metric="trainer/global_step")
         
         
         ########################### DO NOT TOUCH STARTS FROM HERE ####################
         ## optimization variables: ls are Lagrangian multipliers
-        self.s = torch.zeros((args.datastats['train_num'], 1), requires_grad=True, \
+        self.s = torch.randn((args.datastats['train_num'], 1), requires_grad=True, \
                             dtype=torch.float64, device=self.device)
 
         num_constrains = 2
@@ -98,7 +98,10 @@ class FPOR(AL_base):
             )
         eqs = torch.maximum(s+fx-1-self.t, torch.tensor(0)) - torch.maximum(-s, fx-self.t)
         
-        return torch.cat([ineq, torch.sum(torch.abs(eqs)).view(1, 1)], dim=0)
+        # zero_constrain = torch.mean(torch.abs(s*(1-s)))
+        zero_constrain = 0
+        
+        return torch.cat([ineq, 100*(torch.mean(torch.abs(eqs))+zero_constrain).view(1, 1)], dim=0)
     
     
     def warmstart(self):
@@ -112,10 +115,11 @@ class FPOR(AL_base):
         for epoch in range(self.warm_start):
             self.model.train()
             for _, X, y in self.trainloader:
+                y = y.view(-1).long()
                 X, y = X.to(self.device), y.to(self.device)
                 optim.zero_grad()
-                L = criterion(self.model(X), y.flatten().long())
-                L.backward()
+                loss = criterion(self.model(X), y.flatten().long())
+                loss.backward()
                 optim.step()
                 
             with torch.no_grad():
@@ -140,19 +144,20 @@ class FPOR(AL_base):
         if self.warm_start > 0:
             self.warmstart()
         
-        self.initialize_with_feasiblity()
-        sigmoid = nn.Sigmoid()
+        # self.initialize_with_feasiblity()
+        m = nn.Sigmoid()
         for r in range(self.rounds):
-            # 3. Log gradients and model parameters
+            # Log gradients and model parameters
+            self.model.train()
             for _ in range(self.subprob_max_epoch):
-                self.model.train()
                 self.solve_sub_problem()
                 with torch.no_grad():
-                    self.s.data.copy_((sigmoid(self.s.data-0.5) >= 0.5).int())
-
-            wandb.watch(self.model)        
+                    self.s.data.copy_(m(self.s.data-self.t) >= self.t)
+        
+                
+            # wandb.watch(self.model)        
             ## update lagrangian multiplier and evaluation
-            self.initialize_with_feasiblity()
+            # self.initialize_with_feasiblity()
             with torch.no_grad():
                 self.model.eval()
                 self.update_langrangian_multiplier()
@@ -169,15 +174,15 @@ class FPOR(AL_base):
                 self.rho *= self.delta  
                 
                 
-                wandb.log({ "trainer/global_step": r, \
-                            "train/Obj": self.objective().item(), \
-                            "train/IEQ": constrains[0].item(), \
-                            "train/EQ": torch.sum(constrains[1:]).item(), \
-                            "train/Precision": train_precision, \
-                            "train/Recall": train_recall, \
-                            "val/Precision": val_precision, \
-                            "val/Recall": val_recall
-                            })
+            #     wandb.log({ "trainer/global_step": r, \
+            #                 "train/Obj": self.objective().item(), \
+            #                 "train/IEQ": constrains[0].item(), \
+            #                 "train/EQ": torch.sum(constrains[1:]).item(), \
+            #                 "train/Precision": train_precision, \
+            #                 "train/Recall": train_recall, \
+            #                 "val/Precision": val_precision, \
+            #                 "val/Recall": val_recall
+            #                 })
                 
         
         final_model_name = f"{self.workspace}/final.pt"
@@ -186,13 +191,13 @@ class FPOR(AL_base):
         # art_model.add_file(final_model_name)
         # wandb.log_artifact(art_model, aliases=["final"])
         
-        try:
-            wandb.run.summary["train_precision"] = train_precision
-            wandb.run.summary["train_recall"] = train_recall
-            wandb.run.summary["val_precision"] = val_precision
-            wandb.run.summary["val_recall"] = val_recall
-        except:
-            print("skip AL...")
+        # try:
+        #     wandb.run.summary["train_precision"] = train_precision
+        #     wandb.run.summary["train_recall"] = train_recall
+        #     wandb.run.summary["val_precision"] = val_precision
+        #     wandb.run.summary["val_recall"] = val_recall
+        # except:
+        #     print("skip AL...")
         
         return self.model
     

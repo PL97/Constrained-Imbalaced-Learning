@@ -1,6 +1,7 @@
 .ipynb_checkpoints/
 figs/
 binary_data/
+data/
 wandb/
 checkpoints/
 lightning_logs/

@@ -1,5 +1,6 @@
 
 import torch
+import torch.nn as nn
 
 class AL_base:
     @torch.no_grad()
@@ -43,7 +44,10 @@ class AL_base:
             self.optim.zero_grad()
             L = self.AL_func()
             L.backward()
-        self.optim.step()
+            self.optim.step()
+            # with torch.no_grad():
+            #     self.s[idx].data.copy_(self.s[idx].data.clamp(-1,1))
+        
     
     def update_langrangian_multiplier(self):
         """update the lagrangian multipler

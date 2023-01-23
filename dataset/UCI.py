@@ -73,17 +73,17 @@ def get_data(name='adult', batch_size=10, random_seed=1997):
     trainloader = DataLoader(UCI_dataset(X=X_train, y=y_train), \
                             batch_size=batch_size, \
                             shuffle=True, \
-                            num_workers=8)
+                            num_workers=4)
     
     valloader = DataLoader(UCI_dataset(X=X_val, y=y_val), \
                             batch_size=batch_size, \
                             shuffle=False, \
-                            num_workers=8) 
+                            num_workers=4) 
     
     testloader = DataLoader(UCI_dataset(X=X_test, y=y_test), \
                             batch_size=batch_size, \
                             shuffle=False, \
-                            num_workers=8) 
+                            num_workers=4) 
     
     return trainloader, valloader, testloader, stats
     
