@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 from torch.optim import SGD, AdamW, Adam, LBFGS
-from sklearn.metrics import precision_score, recall_score
+from sklearn.metrics import precision_score, recall_score, average_precision_score
 import numpy as np
 import wandb
 
@@ -13,6 +13,7 @@ class trainer_base(pl.LightningModule):
         self.workspace = self.args.workspace
         self.model = model
         self.criterion = criterion
+        self.beta = 1
         
     def forward(self, X):
         return self.model(X)
@@ -56,21 +57,20 @@ class trainer_base(pl.LightningModule):
         return {'loss': loss, 'preds': pred, 'target': y}
     
     ## define a set of metrics
-    def cal_precision(self, pred, y):
+    def cal_metrics(self, pred, y):
         m = nn.Softmax(dim=1)
         norm_pred = (m(pred)[:, 1] > 0.5).int().detach().cpu().numpy()
+        y = y.detach().cpu().numpy()
         
-        TP = int(norm_pred.T@(y.detach().cpu().numpy()==1).astype(int))
+        TP = int(norm_pred.T@(y==1).astype(int))
         precision = 1.0*TP/np.sum(norm_pred)
-        return precision
-    
-    def cal_recall(self, pred, y):
-        m = nn.Softmax(dim=1)
-        norm_pred = (m(pred)[:, 1] > 0.5).int().detach().cpu().numpy()
+        recall = 1.0*TP/np.sum(y==1)
+        f_beta = (1+self.beta**2) * (precision*recall)/((self.beta**2)*precision+recall)
+        AP = average_precision_score(y_true=y, y_score=norm_pred)
+        return {"precision": precision, "recall": recall, "F_beta": f_beta, "AP": AP}
         
-        TP = int(norm_pred.T@(y.detach().cpu().numpy()==1).astype(int))
-        recall = 1.0*TP/torch.sum(y==1)
-        return recall
+    
+
         
     @torch.no_grad()
     def _shared_epoch_end(self, outputs, prefix):
@@ -81,10 +81,9 @@ class trainer_base(pl.LightningModule):
         preds = torch.cat(preds)
         target = torch.cat(target)
         # update and log
-        precision = self.cal_precision(preds, target)
-        recall = self.cal_recall(preds, target)
-        self.log(f'{prefix}/Precision', precision, sync_dist=True)
-        self.log(f'{prefix}/Recall', recall, sync_dist=True)
+        metrics = self.cal_metrics(preds, target)
+        for k, v in metrics.items():
+            self.log(f'{prefix}/{k}', v, sync_dist=True)
         
     @torch.no_grad()
     def training_epoch_end(self, outputs):
@@ -110,5 +109,8 @@ class trainer_base(pl.LightningModule):
         TP = int(prediction.T@(labels==1).astype(int))
         precision = 1.0*TP/np.sum(prediction)
         recall = 1.0*TP/np.sum(labels==1)
-        return precision, recall
+        f_beta = (1+self.beta**2) * (precision*recall)/((self.beta**2)*precision+recall)
+        AP = average_precision_score(y_true=labels, y_score=prediction)
+        metric = {"precision": precision, "recall": recall, "F_beta": f_beta, "AP": AP}
+        return metric
         
