@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 import torchvision
 import pickle
 import os
+from dataset.Fastloader import FastTensorDataLoader  
 
 
 class Cifar10(Dataset):
@@ -93,7 +94,7 @@ def get_data(batch_size=10, random_seed=1997, binary_pos=0):
                                                       random_state=random_seed)
     
     imgList_test, labelList_test = load_cifar10_test()
-    labelList_test = np.asarray([0 if l != binary_pos else 1 for l in labelList])
+    labelList_test = np.asarray([0 if l != binary_pos else 1 for l in labelList_test])
     
     stats = {
         'feature_dim': (3, 32, 32), \
@@ -105,20 +106,32 @@ def get_data(batch_size=10, random_seed=1997, binary_pos=0):
         'label_distribution': Counter(labelList)
     }
 
-    trainloader = DataLoader(Cifar10(X=imgList_train, y=labelList_train), \
-                            batch_size=batch_size, \
-                            shuffle=True, \
-                            num_workers=8)
+    # trainloader = DataLoader(Cifar10(X=imgList_train, y=labelList_train), \
+    #                         batch_size=batch_size, \
+    #                         shuffle=True, \
+    #                         num_workers=8)
     
-    valloader = DataLoader(Cifar10(X=imgList_val, y=labelList_val), \
-                            batch_size=batch_size, \
-                            shuffle=False, \
-                            num_workers=8) 
+    # valloader = DataLoader(Cifar10(X=imgList_val, y=labelList_val), \
+    #                         batch_size=batch_size, \
+    #                         shuffle=False, \
+    #                         num_workers=8) 
     
-    testloader = DataLoader(Cifar10(X=imgList_test, y=labelList_test), \
-                            batch_size=batch_size, \
-                            shuffle=False, \
-                            num_workers=8) 
+    # testloader = DataLoader(Cifar10(X=imgList_test, y=labelList_test), \
+    #                         batch_size=batch_size, \
+    #                         shuffle=False, \
+    #                         num_workers=8) 
+    X_train, X_val, X_test = np.asarray(imgList_train), np.asarray(imgList_val), np.asarray(imgList_test)
+    y_train, y_val, y_test = np.asarray(labelList_train), np.asarray(labelList_val), np.asarray(labelList_test)
+    X_train, y_train = torch.from_numpy(X_train), torch.from_numpy(y_train)
+    X_val, y_val = torch.from_numpy(X_val), torch.from_numpy(y_val)
+    X_test, y_test = torch.from_numpy(X_test), torch.from_numpy(y_test)
+    
+    print(X_test.shape, y_test.shape, len(imgList_test))
+    
+    trainloader = FastTensorDataLoader(np.asarray(range(len(imgList_train))), X_train, y_train, batch_size=batch_size, shuffle=True)
+    valloader = FastTensorDataLoader(np.asarray(range(len(imgList_val))), X_val, y_val, batch_size=batch_size, shuffle=True)
+    testloader = FastTensorDataLoader(np.asarray(range(len(imgList_test))), X_test, y_test, batch_size=batch_size, shuffle=True)
+    
     
     return trainloader, valloader, testloader, stats
 
