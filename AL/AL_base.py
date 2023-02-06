@@ -33,27 +33,58 @@ class AL_base:
                 + (self.rho/2)* torch.sum(self.constrain()**2)
     
     
-    
     def solve_sub_problem(self): 
         """solve the sub problem (stochastic)
         """
+        m = nn.Sigmoid()
         for idx, X, y in self.trainloader:
             X, y = X.to(self.device), y.to(self.device)
-            self.active_set = {"X": X, "y": y, "s": self.s[idx]}
+            self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
+            from copy import deepcopy
+            tmp_s = deepcopy(self.s.data)
 
             self.optim.zero_grad()
             L = self.AL_func()
             L.backward()
             self.optim.step()
-            # with torch.no_grad():
-            #     self.s[idx].data.copy_(self.s[idx].data.clamp(-1,1))
+            
+            self.s.requires_grad = True
+            # break
+
+            with torch.no_grad():
+                for i in idx:
+                    tmp_s[i] = self.s.data[i]
+                self.s.data.copy_(tmp_s)
+                # self.s.data.copy_(m(self.s.data-self.t) >= self.t)
+        
+
+        with torch.no_grad():
+            self.model.train()
+            ret_val = 0
+            for idx, X, y in self.trainloader:
+                X, y = X.to(self.device), y.to(self.device)
+                self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
+                L = self.AL_func()
+                ret_val += L.item()
+        return ret_val
+                
+                
         
     
     def update_langrangian_multiplier(self):
         """update the lagrangian multipler
         """
+        # self.active_set = {
+        #     'X': self.trainloader.data,
+        #     'y': self.trainloader.targets, 
+        #     's': self.s,
+        #     'idx': list(range(self.trainloader.targets.shape[0]))
+        # }
         constrain_output = self.constrain()
         self.ls += self.rho*constrain_output
+        # if torch.norm(constrain_output) > torch.norm(self.pre_constrain, p=1):
+        #     self.rho *= self.delta
+        # self.pre_constrain = constrain_output
     
     def fit(self):
         """solve the constrained problem, in each round we iterativly solve the sub problem and update the lagrangian multiplier
@@ -63,7 +94,3 @@ class AL_base:
                 self.solve_sub_problem()
             with torch.no_grad():
                 self.update_langrangian_multiplier()
-
-    
-     
-    

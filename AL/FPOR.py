@@ -8,6 +8,8 @@ import wandb
 from AL.AL_base import AL_base
 from utils.loss import WCE
 from AL.sampler import BatchSampler
+from models.utils import EarlyStopper
+from sklearn.metrics import average_precision_score
 
 
 
@@ -43,25 +45,26 @@ class FPOR(AL_base):
         
         
         ## track hyparam
-        # self.wandb_run = wandb.init(project='FPOR', \
-        #            name=self.args.run_name, \
-        #            dir = self.args.workspace, \
-        #            config={
-        #             'dataset': self.args.dataset, \
-        #             'subprob_max_epoch': self.subprob_max_epoch, \
-        #             'rounds': self.rounds, \
-        #             'lr': self.lr, \
-        #             'lr_s': self.lr_s, \
-        #             'alpha': self.alpha, \
-        #             't': self.t, \
-        #             'solver': self.solver, \
-        #             'warm_start': self.warm_start, \
-        #             'rho': self.rho, \
-        #             'delta': self.delta
-        #            })
-        # wandb.define_metric("trainer/global_step")
-        # wandb.define_metric("train/*", step_metric="trainer/global_step")
-        # wandb.define_metric("val/*", step_metric="trainer/global_step")
+        self.wandb_run = wandb.init(project=self.args.method, \
+                   name=self.args.run_name, \
+                   dir = self.args.workspace, \
+                   config={
+                    'dataset': self.args.dataset, \
+                    'subprob_max_epoch': self.subprob_max_epoch, \
+                    'rounds': self.rounds, \
+                    'lr': self.lr, \
+                    'lr_s': self.lr_s, \
+                    'alpha': self.alpha, \
+                    't': self.t, \
+                    'solver': self.solver, \
+                    'warm_start': self.warm_start, \
+                    'rho': self.rho, \
+                    'delta': self.delta, \
+                    'batch_size': self.args.batch_size
+                   })
+        wandb.define_metric("trainer/global_step")
+        wandb.define_metric("train/*", step_metric="trainer/global_step")
+        wandb.define_metric("val/*", step_metric="trainer/global_step")
         
         
         ########################### DO NOT TOUCH STARTS FROM HERE ####################
@@ -69,7 +72,7 @@ class FPOR(AL_base):
         self.s = torch.randn((args.datastats['train_num'], 1), requires_grad=True, \
                             dtype=torch.float64, device=self.device)
 
-        num_constrains = 2
+        num_constrains = args.num_constrains
             
         self.ls = torch.zeros((num_constrains, 1), requires_grad=False, \
                             dtype=torch.float64, device=self.device)
@@ -79,29 +82,45 @@ class FPOR(AL_base):
                     {'params': self.model.parameters(), 'lr': self.lr},
                     {'params': self.s, 'lr': self.lr_s}  ##best to set as 0.5
                     ])
+        self.earlystopper = EarlyStopper(patience=10)
+        self.beta = 1
     
     def objective(self):
-        X, y, s = self.active_set['X'], self.active_set['y'], self.active_set['s']
-        n_pos = torch.sum(y==1)
-        return -s.T@(y==1).double()/n_pos
+        X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
+        # s = self.s[idx]
+        s = self.s
+        # all_y = y.to(self.device)
+        all_y = self.trainloader.targets.to(self.device)
+        n_pos = torch.sum(all_y==1)
+        m = nn.Softmax(dim=1)
+        return -s.T@(all_y==1).double()/n_pos
 
     
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
     def constrain(self):
-        X, y, s = self.active_set['X'], self.active_set['y'], self.active_set['s']
-        
+        X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
+        all_y = self.trainloader.targets.to(self.device)
+        s = self.s[idx]
+        all_s = self.s
         m = nn.Softmax(dim=1)
+        X = X.float()
         fx = m(self.model(X))[:, 1].view(-1, 1)
         ineq = torch.maximum(torch.tensor(0), \
-            # self.alpha * torch.sum(s) - self.s.T@(y==1).double()
-            self.alpha - s.T@(y==1).double() / torch.sum(s) 
+            self.alpha - all_s.T@(all_y==1).double() / torch.sum(all_s) 
             )
-        eqs = torch.maximum(s+fx-1-self.t, torch.tensor(0)) - torch.maximum(-s, fx-self.t)
+        # eqs = torch.maximum(s+fx-1-self.t, torch.tensor(0)) - torch.maximum(-s, fx-self.t)
+        # zero_constrain = torch.mean(torch.abs(self.s[idx]*(1-self.s[idx])))
+        # return torch.cat([ineq.view(1, 1), (torch.mean(torch.abs(eqs))+zero_constrain).view(1, 1)], dim=0)
         
-        # zero_constrain = torch.mean(torch.abs(s*(1-s)))
-        zero_constrain = 0
-        
-        return torch.cat([ineq, 100*(torch.mean(torch.abs(eqs))+zero_constrain).view(1, 1)], dim=0)
+        pos_idx = (y==1).flatten()
+        eqs_p = torch.maximum(torch.tensor(0), \
+            torch.maximum(s[pos_idx]+fx[pos_idx]-1-self.t, torch.tensor(0)) - torch.maximum(-s[pos_idx], fx[pos_idx]-self.t)
+        )
+        neg_idx = (y==0).flatten()
+        eqs_n = torch.maximum(torch.tensor(0), \
+            -torch.maximum(s[neg_idx]+fx[neg_idx]-1-self.t, torch.tensor(0)) + torch.maximum(-s[neg_idx], fx[neg_idx]-self.t)
+        )
+        return torch.cat([ineq.view(1, 1), (torch.mean(torch.abs(eqs_n))).view(1, 1), (torch.mean(torch.abs(eqs_p))).view(1, 1)], dim=0)
     
     
     def warmstart(self):
@@ -116,6 +135,7 @@ class FPOR(AL_base):
             self.model.train()
             for _, X, y in self.trainloader:
                 y = y.view(-1).long()
+                X = X.float()
                 X, y = X.to(self.device), y.to(self.device)
                 optim.zero_grad()
                 loss = criterion(self.model(X), y.flatten().long())
@@ -124,10 +144,11 @@ class FPOR(AL_base):
                 
             with torch.no_grad():
                 self.model.eval()
-                train_precision, train_recall = self.test(self.trainloader)
+                train_metrics = self.test(self.trainloader)
                 
                 print(f"========== Warm Start Round {epoch}/{self.warm_start} ===========")
-                print("Precision: {:3f} \t Recall {:3f}".format(train_precision, train_recall))
+                print("Precision: {:.3f} \t Recall {:.3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
+                        train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
 
     
     @torch.no_grad()
@@ -138,23 +159,36 @@ class FPOR(AL_base):
         self.s -= self.s
         for idx, X, y in self.trainloader:
             X = X.to(self.device)
+            X = X.float()
             self.s[idx] += (m(self.model(X))[:, 1].view(-1, 1) >= self.t).int()
 
     def fit(self):
         if self.warm_start > 0:
             self.warmstart()
         
-        # self.initialize_with_feasiblity()
+        # self.active_set = {
+        #     'X': self.trainloader.data,
+        #     'y': self.trainloader.targets, 
+        #     's': self.s,
+        #     'idx': list(range(self.trainloader.targets.shape[0]))
+        # }
+        # self.pre_constrain = self.constrain()
+        self.initialize_with_feasiblity()
         m = nn.Sigmoid()
         for r in range(self.rounds):
             # Log gradients and model parameters
             self.model.train()
             for _ in range(self.subprob_max_epoch):
-                self.solve_sub_problem()
-                with torch.no_grad():
-                    self.s.data.copy_(m(self.s.data-self.t) >= self.t)
+                # print(f"================= {_} ==============")
+                Lag_loss = self.solve_sub_problem()
+                # print(f"lagrangian value: {Lag_loss}")
+                if self.earlystopper.early_stop(Lag_loss):
+                    print(f"train for {_} iterations")
+                    break
+                # with torch.no_grad():
+                #     self.s.data.copy_(m(self.s.data-self.t) >= self.t)
         
-                
+            self.earlystopper.reset()
             # wandb.watch(self.model)        
             ## update lagrangian multiplier and evaluation
             # self.initialize_with_feasiblity()
@@ -163,26 +197,32 @@ class FPOR(AL_base):
                 self.update_langrangian_multiplier()
                 
                 ## log training performance
-                train_precision, train_recall = self.test(self.trainloader)
-                val_precision, val_recall = self.test(self.valloader)
+                train_metrics = self.test(self.trainloader)
+                val_metrics = self.test(self.valloader)
                 
                 print(f"========== Round {r}/{self.rounds} ===========")
-                print("Precision: {:3f} \t Recall {:3f}".format(train_precision, train_recall))
+                print("Precision: {:3f} \t Recall {:3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
+                        train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
                 constrains = self.constrain()
                 print("Obj: {}\tIEQ: {}\tEQ: {}".format(self.objective().item(), constrains[0].item(), torch.sum(constrains[1:]).item()))
-                print("(val)Precision: {:3f} \t Recall {:3f}".format(val_precision, val_recall))
-                self.rho *= self.delta  
+                print("(val)Precision: {:3f} \t Recall {:3f} F_beta {:.3f} AP:{:.3f}".format(\
+                        val_metrics['precision'], val_metrics['recall'], val_metrics['F_beta'], val_metrics['AP']))
+                  
                 
                 
-            #     wandb.log({ "trainer/global_step": r, \
-            #                 "train/Obj": self.objective().item(), \
-            #                 "train/IEQ": constrains[0].item(), \
-            #                 "train/EQ": torch.sum(constrains[1:]).item(), \
-            #                 "train/Precision": train_precision, \
-            #                 "train/Recall": train_recall, \
-            #                 "val/Precision": val_precision, \
-            #                 "val/Recall": val_recall
-            #                 })
+                wandb.log({ "trainer/global_step": r, \
+                            "train/Obj": self.objective().item(), \
+                            "train/IEQ": constrains[0].item(), \
+                            "train/EQ": torch.sum(constrains[1:]).item(), \
+                            "train/Precision": train_metrics['precision'], \
+                            "train/Recall": train_metrics['recall'], \
+                            "train/F_beta": train_metrics['F_beta'],
+                            "train/AP": train_metrics['AP'],
+                            "val/Precision": val_metrics['precision'], \
+                            "val/Recall": val_metrics['recall'],
+                            "val/F_beta": val_metrics['F_beta'],
+                            "val/AP": val_metrics['AP']
+                            })
                 
         
         final_model_name = f"{self.workspace}/final.pt"
@@ -191,13 +231,13 @@ class FPOR(AL_base):
         # art_model.add_file(final_model_name)
         # wandb.log_artifact(art_model, aliases=["final"])
         
-        # try:
-        #     wandb.run.summary["train_precision"] = train_precision
-        #     wandb.run.summary["train_recall"] = train_recall
-        #     wandb.run.summary["val_precision"] = val_precision
-        #     wandb.run.summary["val_recall"] = val_recall
-        # except:
-        #     print("skip AL...")
+        try:
+            wandb.run.summary["train_precision"] = train_metrics['precision']
+            wandb.run.summary["train_recall"] = train_metrics['recall']
+            wandb.run.summary["val_precision"] = val_metrics['precision']
+            wandb.run.summary["val_recall"] = val_metrics['recall']
+        except:
+            print("skip AL...")
         
         return self.model
     
@@ -217,6 +257,7 @@ class FPOR(AL_base):
         prediction = []
         labels = []
         for _, X, y in dataloader:
+            X = X.float()
             X, y = X.to(self.device), y.to(self.device)
             prediction.extend((m(self.model(X))[:, 1].detach().cpu().numpy() >= self.t).astype(int))
             labels.extend(y)
@@ -226,4 +267,7 @@ class FPOR(AL_base):
         TP = int(prediction.T@(labels==1).astype(int))
         precision = 1.0*TP/np.sum(prediction)
         recall = 1.0*TP/np.sum(labels==1)
-        return precision, recall
+        f_beta = (1+self.beta**2) * (precision*recall)/((self.beta**2)*precision+recall)
+        AP = average_precision_score(y_true=labels, y_score=prediction)
+        metric = {"precision": precision, "recall": recall, "F_beta": f_beta, "AP": AP}
+        return metric
