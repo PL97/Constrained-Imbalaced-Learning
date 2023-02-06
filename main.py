@@ -5,8 +5,12 @@ import sys
 sys.path.append("./")
 
 from AL.FPOR import FPOR
-from dataset.UCI import get_data
+from AL.FROP import FROP
+from AL.OFBS import OFBS
+from dataset.UCI import get_data as get_uci_data
+from dataset.cifar100 import get_data as get_cifar100_data
 from models.MLP import MLP
+from models.AlexNet import AlexNet
 import argparse
 import os
 
@@ -71,7 +75,7 @@ def pytorchlightning_wandb_setup(args):
     Returns:
         wandb_logger: will be used for Pytorch lightning trainer
     """
-    wandb_logger = WandbLogger(project="FPOR", \
+    wandb_logger = WandbLogger(project="AL_FPOR", \
                                 name=args.run_name, \
                                 save_dir=args.workspace)
     wandb_logger.experiment.config.update({
@@ -91,21 +95,43 @@ if __name__ == "__main__":
     args = setup()
 
     device = torch.device("cuda")
-    trainloader, valloader, testloader, stats = get_data(name=args.dataset, \
+    if args.dataset == "cifar100":
+        trainloader, valloader, testloader, stats = get_cifar100_data(
                                                         batch_size=args.batch_size, \
-                                                        random_seed=args.random_seed)
+                                                        random_seed=args.random_seed, \
+                                                        with_idx=("AL" in args.method))
+        model = AlexNet(num_classes=2, grayscale=False, input_shape=(1, 3, 32, 32))
+    else:
+        trainloader, valloader, testloader, stats = get_uci_data(name=args.dataset, \
+                                                        batch_size=args.batch_size, \
+                                                        random_seed=args.random_seed, \
+                                                        with_idx=("AL" in args.method))
+        model = MLP(input_dim=stats['feature_dim'], hidden_dim=100, num_layers=10, output_dim=stats['label_num'])
     
     args.datastats = stats
+    print(stats)
     
     ## for debug and demo
     # X_tensor, y_tenosr, X, y = generate_data(dimension=2, device=device)
     
-    model = MLP(input_dim=stats['feature_dim'], hidden_dim=100, num_layers=10, output_dim=stats['label_num'])
     
-    if args.method == "AL":
+    
+    if "AL" in args.method:
         criterion = WCE(npos=stats["label_distribution"][1], nneg=stats["label_distribution"][0], device=device)
         args.criterion = criterion
-        trainer = FPOR(trainloader, \
+        if args.method == "AL_FPOR":
+            args.num_constrains = 3
+            trainer = FPOR(trainloader, \
+                        valloader, \
+                        device=device, model=model, args=args)  
+        elif args.method == "AL_FROP":
+            args.num_constrains = 2
+            trainer = FROP(trainloader, \
+                        valloader, \
+                        device=device, model=model, args=args)
+        elif args.method == "AL_OFBS":
+            args.num_constrains = 2
+            trainer = OFBS(trainloader, \
                         valloader, \
                         device=device, model=model, args=args)
         
@@ -119,21 +145,22 @@ if __name__ == "__main__":
         val_precision, val_recall = trainer.test(valloader)
         test_precision, test_recall = trainer.test(testloader)
         
+        print("train precision and recall:", train_precision, train_recall)
+        print("val precision and recall:", val_precision, val_recall)
+        print("test precision and recall:", test_precision, test_recall)
+        
         
         ## final evaluation on train, val, and test set
-        # wandb.run.summary.update({"train_precision": train_precision, \
-        #                           "train_recall": train_recall, \
-        #                           "val_precision": val_precision, \
-        #                           "val_recall": val_recall, \
-        #                           "test_precision": test_precision, \
-        #                           "test_recall": test_recall})
-        # wandb.finish()
+        wandb.run.summary.update({"train_precision": train_precision, \
+                                  "train_recall": train_recall, \
+                                  "val_precision": val_precision, \
+                                  "val_recall": val_recall, \
+                                  "test_precision": test_precision, \
+                                  "test_recall": test_recall})
+        wandb.finish()
+    
     elif args.method == "WCE":
         criterion = WCE(npos=stats["label_distribution"][1], nneg=stats["label_distribution"][0])
-        trainloader.dataset.set_ret_idx(ret=False)
-        valloader.dataset.set_ret_idx(ret=False)
-        testloader.dataset.set_ret_idx(ret=False)
-
         args.wandb_logger = pytorchlightning_wandb_setup(args=args)
         trainer = pl.Trainer(max_epochs=args.rounds, 
                             accelerator="gpu", 
