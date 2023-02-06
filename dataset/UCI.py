@@ -4,6 +4,7 @@ from collections import Counter
 import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
+from dataset.Fastloader import FastTensorDataLoader  
         
         
 class UCI_dataset(Dataset):
@@ -33,7 +34,7 @@ class UCI_dataset(Dataset):
             return self.X[index], self.y[index]
   
 
-def get_data(name='adult', batch_size=10, random_seed=1997):
+def get_data(name='adult', batch_size=10, random_seed=1997, with_idx=True):
     """get UCI dataset and prepare dataloader
 
     Args:
@@ -70,20 +71,44 @@ def get_data(name='adult', batch_size=10, random_seed=1997):
         'val_num': X_val.shape[0], \
         'label_distribution': Counter(df.iloc[:, -1])
     }
-    trainloader = DataLoader(UCI_dataset(X=X_train, y=y_train), \
-                            batch_size=batch_size, \
-                            shuffle=True, \
-                            num_workers=4)
+    # trainloader = DataLoader(UCI_dataset(X=X_train, y=y_train), \
+    #                         batch_size=batch_size, \
+    #                         shuffle=True, \
+    #                         pin_memory=True, \
+    #                         num_workers=4)
     
-    valloader = DataLoader(UCI_dataset(X=X_val, y=y_val), \
-                            batch_size=batch_size, \
-                            shuffle=False, \
-                            num_workers=4) 
+    # valloader = DataLoader(UCI_dataset(X=X_val, y=y_val), \
+    #                         batch_size=batch_size, \
+    #                         shuffle=False, \
+    #                         pin_memory=True, \
+    #                         num_workers=4) 
     
-    testloader = DataLoader(UCI_dataset(X=X_test, y=y_test), \
-                            batch_size=batch_size, \
-                            shuffle=False, \
-                            num_workers=4) 
+    # testloader = DataLoader(UCI_dataset(X=X_test, y=y_test), \
+    #                         batch_size=batch_size, \
+    #                         shuffle=False, \
+    #                         pin_memory=True, \
+    #                         num_workers=4) 
+    
+    # trainloader = FastTensorDataLoader(X_train, y_train, batch_size=batch_size, shuffle=True)
+    # valloader = FastTensorDataLoader(X_val, y_val, batch_size=batch_size, shuffle=True)
+    # testloader = FastTensorDataLoader(X_test, y_test, batch_size=batch_size, shuffle=True)
+    
+
+    X_train, y_train = torch.from_numpy(X_train), torch.from_numpy(y_train)
+    X_val, y_val = torch.from_numpy(X_val), torch.from_numpy(y_val)
+    X_test, y_test = torch.from_numpy(X_test), torch.from_numpy(y_test)
+
+
+    if with_idx:
+        trainloader = FastTensorDataLoader(np.asarray(range(X_train.shape[0])), X_train, y_train, batch_size=batch_size, shuffle=True)
+        valloader = FastTensorDataLoader(np.asarray(range(X_val.shape[0])), X_val, y_val, batch_size=batch_size, shuffle=True)
+        testloader = FastTensorDataLoader(np.asarray(range(X_test.shape[0])), X_test, y_test, batch_size=batch_size, shuffle=True)
+    else:
+        trainloader = FastTensorDataLoader(X_train, y_train, batch_size=batch_size, shuffle=True)
+        valloader = FastTensorDataLoader(X_val, y_val, batch_size=batch_size, shuffle=True)
+        testloader = FastTensorDataLoader(X_test, y_test, batch_size=batch_size, shuffle=True)
+    
+    
     
     return trainloader, valloader, testloader, stats
     
