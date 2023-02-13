@@ -125,7 +125,7 @@ if __name__ == "__main__":
                         valloader, \
                         device=device, model=model, args=args)  
         elif args.method == "AL_FROP":
-            args.num_constrains = 2
+            args.num_constrains = 3
             trainer = FROP(trainloader, \
                         valloader, \
                         device=device, model=model, args=args)
@@ -141,22 +141,24 @@ if __name__ == "__main__":
         # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
         
         
-        train_precision, train_recall = trainer.test(trainloader)
-        val_precision, val_recall = trainer.test(valloader)
-        test_precision, test_recall = trainer.test(testloader)
-        
-        print("train precision and recall:", train_precision, train_recall)
-        print("val precision and recall:", val_precision, val_recall)
-        print("test precision and recall:", test_precision, test_recall)
+        train_metrics = trainer.test(trainloader)
+        val_metrics = trainer.test(valloader)
+        test_metrics = trainer.test(testloader)
         
         
         ## final evaluation on train, val, and test set
-        wandb.run.summary.update({"train_precision": train_precision, \
-                                  "train_recall": train_recall, \
-                                  "val_precision": val_precision, \
-                                  "val_recall": val_recall, \
-                                  "test_precision": test_precision, \
-                                  "test_recall": test_recall})
+        wandb.run.summary.update({"train_precision": train_metrics['precision'], \
+                                  "train_recall": train_metrics['recall'], \
+                                  "train_F_beta": train_metrics['F_beta'], \
+                                  "train_AP": train_metrics['AP'], \
+                                  "val_precision": val_metrics['precision'], \
+                                  "val_recall": val_metrics['recall'], \
+                                  "val_F_beta": val_metrics['F_beta'], \
+                                  "val_AP": val_metrics['AP'], \
+                                  "test_precision": test_metrics['precision'], \
+                                  "test_recall": test_metrics['recall'], \
+                                  "test_F_beta": test_metrics['F_beta'], \
+                                  "test_AP": test_metrics['AP']})
         wandb.finish()
     
     elif args.method == "WCE":
@@ -178,16 +180,22 @@ if __name__ == "__main__":
         
         
         ## final evaluation on train, val, and test set
-        train_precision, train_recall = MyLightningModule.test(trainloader)
-        val_precision, val_recall = MyLightningModule.test(valloader)
-        test_precision, test_recall = MyLightningModule.test(testloader)
+        train_metrics = MyLightningModule.test(trainloader)
+        val_metrics = MyLightningModule.test(valloader)
+        test_metrics = MyLightningModule.test(testloader)
         
-        wandb.run.summary.update({"train_precision": train_precision, \
-                                  "train_recall": train_recall, \
-                                  "val_precision": val_precision, \
-                                  "val_recall": val_recall, \
-                                  "test_precision": test_precision, \
-                                  "test_recall": test_recall})
+        wandb.run.summary.update({"train_precision": train_metrics['precision'], \
+                                  "train_recall": train_metrics['recall'], \
+                                  "train_F_beta": train_metrics['F_beta'], \
+                                  "train_AP": train_metrics['AP'], \
+                                  "val_precision": val_metrics['precision'], \
+                                  "val_recall": val_metrics['recall'], \
+                                  "val_F_beta": val_metrics['F_beta'], \
+                                  "val_AP": val_metrics['AP'], \
+                                  "test_precision": test_metrics['precision'], \
+                                  "test_recall": test_metrics['recall'], \
+                                  "test_F_beta": test_metrics['F_beta'], \
+                                  "test_AP": test_metrics['AP']})
         wandb.finish()
 
     else:
