@@ -78,10 +78,16 @@ class FPOR(AL_base):
                             dtype=torch.float64, device=self.device)
         
         self.active_set = None ## this defines a set of activate data(includes indices) that used for optimizing subproblem
-        self.optim = AdamW([
-                    {'params': self.model.parameters(), 'lr': self.lr},
-                    {'params': self.s, 'lr': self.lr_s}  ##best to set as 0.5
-                    ])
+        if args.solver.lower() == "AdamW".lower():
+            self.optim = AdamW([
+                        {'params': self.model.parameters(), 'lr': self.lr},
+                        {'params': self.s, 'lr': self.lr_s}  ##best to set as 0.5
+                        ])
+        else:
+            self.optim = LBFGS(list(self.model.parameters()) + list(self.s), history_size=10, max_iter=4, line_search_fn="strong_wolfe")
+        
+        self.optimizer = args.solver
+        
         self.earlystopper = EarlyStopper(patience=10)
         self.beta = 1
     

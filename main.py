@@ -125,7 +125,7 @@ if __name__ == "__main__":
                         valloader, \
                         device=device, model=model, args=args)  
         elif args.method == "AL_FROP":
-            args.num_constrains = 3
+            args.num_constrains = 2
             trainer = FROP(trainloader, \
                         valloader, \
                         device=device, model=model, args=args)

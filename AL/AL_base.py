@@ -31,7 +31,10 @@ class AL_base:
         X = X.to(self.device)
         return self.objective() + self.ls.T@self.constrain() \
                 + (self.rho/2)* torch.sum(self.constrain()**2)
+
     
+    
+
     
     def solve_sub_problem(self): 
         """solve the sub problem (stochastic)
@@ -43,19 +46,31 @@ class AL_base:
             from copy import deepcopy
             tmp_s = deepcopy(self.s.data)
 
-            self.optim.zero_grad()
-            L = self.AL_func()
-            L.backward()
-            self.optim.step()
+            if self.solver.lower() == "AdamW".lower():
+                self.optim.zero_grad()
+                L = self.AL_func()
+                L.backward()
+                self.optim.step()
+            else:
+                # L-BFGS
+                def closure():
+                    self.optim.zero_grad()
+                    L = self.AL_func()
+                    L.backward()
+                    return L
+                self.optim.step(closure)
             
             self.s.requires_grad = True
             # break
+            
+            # print(self.AL_func().item(), self.objective().item())
 
             with torch.no_grad():
                 for i in idx:
                     tmp_s[i] = self.s.data[i]
                 self.s.data.copy_(tmp_s)
                 # self.s.data.copy_(m(self.s.data-self.t) >= self.t)
+                
         
 
         with torch.no_grad():
@@ -82,6 +97,7 @@ class AL_base:
         # }
         constrain_output = self.constrain()
         self.ls += self.rho*constrain_output
+        self.rho *= self.delta
         # if torch.norm(constrain_output) > torch.norm(self.pre_constrain, p=1):
         #     self.rho *= self.delta
         # self.pre_constrain = constrain_output
