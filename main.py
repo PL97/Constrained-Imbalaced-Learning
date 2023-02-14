@@ -5,8 +5,12 @@ import sys
 sys.path.append("./")
 
 from AL.FPOR import FPOR
-from dataset.UCI import get_data
+from AL.FROP import FROP
+from AL.OFBS import OFBS
+from dataset.UCI import get_data as get_uci_data
+from dataset.cifar100 import get_data as get_cifar100_data
 from models.MLP import MLP
+from models.AlexNet import AlexNet
 import argparse
 import os
 
@@ -18,19 +22,20 @@ from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import TensorDataset, DataLoader
 from utils.loss import WCE
 from dataset.sythetic import generate_data
+from torch.profiler import profile, record_function, ProfilerActivity
 
 def setup():
     """parse arguments in commandline and return a args object
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--random_seed', type=int, default=2)
+    parser.add_argument('--random_seed', type=int, default=1997)
     parser.add_argument('--workspace', type=str, default="checkpoints/FPOR/")
     parser.add_argument('--dataset', type=str, default="diabetic")
     parser.add_argument('--run_name', type=str, default="AL_trail1")
     parser.add_argument('--model', type=str, default="MLP")
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--method', type=str, default="WCE")
-    parser.add_argument('--batch_size', type=int, default=50)
+    parser.add_argument('--batch_size', type=int, default=100)
     
     
     ## for AL method only
@@ -70,7 +75,7 @@ def pytorchlightning_wandb_setup(args):
     Returns:
         wandb_logger: will be used for Pytorch lightning trainer
     """
-    wandb_logger = WandbLogger(project="FPOR", \
+    wandb_logger = WandbLogger(project="AL_FPOR", \
                                 name=args.run_name, \
                                 save_dir=args.workspace)
     wandb_logger.experiment.config.update({
@@ -90,42 +95,74 @@ if __name__ == "__main__":
     args = setup()
 
     device = torch.device("cuda")
-    trainloader, valloader, testloader, stats = get_data(name=args.dataset, \
+    if args.dataset == "cifar100":
+        trainloader, valloader, testloader, stats = get_cifar100_data(
                                                         batch_size=args.batch_size, \
-                                                        random_seed=args.random_seed)
+                                                        random_seed=args.random_seed, \
+                                                        with_idx=("AL" in args.method))
+        model = AlexNet(num_classes=2, grayscale=False, input_shape=(1, 3, 32, 32))
+    else:
+        trainloader, valloader, testloader, stats = get_uci_data(name=args.dataset, \
+                                                        batch_size=args.batch_size, \
+                                                        random_seed=args.random_seed, \
+                                                        with_idx=("AL" in args.method))
+        model = MLP(input_dim=stats['feature_dim'], hidden_dim=100, num_layers=10, output_dim=stats['label_num'])
+    
     args.datastats = stats
+    print(stats)
     
     ## for debug and demo
     # X_tensor, y_tenosr, X, y = generate_data(dimension=2, device=device)
     
-    model = MLP(input_dim=stats['feature_dim'], hidden_dim=100, num_layers=10, output_dim=stats['label_num'])
     
-    if args.method == "AL":
+    
+    if "AL" in args.method:
         criterion = WCE(npos=stats["label_distribution"][1], nneg=stats["label_distribution"][0], device=device)
         args.criterion = criterion
-        trainer = FPOR(trainloader, \
+        if args.method == "AL_FPOR":
+            args.num_constrains = 3
+            trainer = FPOR(trainloader, \
+                        valloader, \
+                        device=device, model=model, args=args)  
+        elif args.method == "AL_FROP":
+            args.num_constrains = 3
+            trainer = FROP(trainloader, \
                         valloader, \
                         device=device, model=model, args=args)
+        elif args.method == "AL_OFBS":
+            args.num_constrains = 2
+            trainer = OFBS(trainloader, \
+                        valloader, \
+                        device=device, model=model, args=args)
+        
         model = trainer.fit()
-        train_precision, train_recall = trainer.test(trainloader)
-        val_precision, val_recall = trainer.test(valloader)
-        test_precision, test_recall = trainer.test(testloader)
+        # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+        #     model = trainer.fit()
+        # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+        
+        
+        train_metrics = trainer.test(trainloader)
+        val_metrics = trainer.test(valloader)
+        test_metrics = trainer.test(testloader)
         
         
         ## final evaluation on train, val, and test set
-        wandb.run.summary.update({"train_precision": train_precision, \
-                                  "train_recall": train_recall, \
-                                  "val_precision": val_precision, \
-                                  "val_recall": val_recall, \
-                                  "test_precision": test_precision, \
-                                  "test_recall": test_recall})
+        wandb.run.summary.update({"train_precision": train_metrics['precision'], \
+                                  "train_recall": train_metrics['recall'], \
+                                  "train_F_beta": train_metrics['F_beta'], \
+                                  "train_AP": train_metrics['AP'], \
+                                  "val_precision": val_metrics['precision'], \
+                                  "val_recall": val_metrics['recall'], \
+                                  "val_F_beta": val_metrics['F_beta'], \
+                                  "val_AP": val_metrics['AP'], \
+                                  "test_precision": test_metrics['precision'], \
+                                  "test_recall": test_metrics['recall'], \
+                                  "test_F_beta": test_metrics['F_beta'], \
+                                  "test_AP": test_metrics['AP']})
         wandb.finish()
+    
     elif args.method == "WCE":
         criterion = WCE(npos=stats["label_distribution"][1], nneg=stats["label_distribution"][0])
-        trainloader.dataset.set_ret_idx(ret=False)
-        valloader.dataset.set_ret_idx(ret=False)
-        testloader.dataset.set_ret_idx(ret=False)
-
         args.wandb_logger = pytorchlightning_wandb_setup(args=args)
         trainer = pl.Trainer(max_epochs=args.rounds, 
                             accelerator="gpu", 
@@ -143,16 +180,22 @@ if __name__ == "__main__":
         
         
         ## final evaluation on train, val, and test set
-        train_precision, train_recall = MyLightningModule.test(trainloader)
-        val_precision, val_recall = MyLightningModule.test(valloader)
-        test_precision, test_recall = MyLightningModule.test(testloader)
+        train_metrics = MyLightningModule.test(trainloader)
+        val_metrics = MyLightningModule.test(valloader)
+        test_metrics = MyLightningModule.test(testloader)
         
-        wandb.run.summary.update({"train_precision": train_precision, \
-                                  "train_recall": train_recall, \
-                                  "val_precision": val_precision, \
-                                  "val_recall": val_recall, \
-                                  "test_precision": test_precision, \
-                                  "test_recall": test_recall})
+        wandb.run.summary.update({"train_precision": train_metrics['precision'], \
+                                  "train_recall": train_metrics['recall'], \
+                                  "train_F_beta": train_metrics['F_beta'], \
+                                  "train_AP": train_metrics['AP'], \
+                                  "val_precision": val_metrics['precision'], \
+                                  "val_recall": val_metrics['recall'], \
+                                  "val_F_beta": val_metrics['F_beta'], \
+                                  "val_AP": val_metrics['AP'], \
+                                  "test_precision": test_metrics['precision'], \
+                                  "test_recall": test_metrics['recall'], \
+                                  "test_F_beta": test_metrics['F_beta'], \
+                                  "test_AP": test_metrics['AP']})
         wandb.finish()
 
     else:

@@ -7,25 +7,38 @@ from sklearn.model_selection import train_test_split
 import torchvision
 import pickle
 import os
+<<<<<<< HEAD
 from torchvision import transforms
 
 
 class Cifar10(Dataset):
     def __init__(self, X, y, mode="val"):
+=======
+from dataset.Fastloader import FastTensorDataLoader  
+
+
+class Cifar10(Dataset):
+    def __init__(self, X, y):
+>>>>>>> d3e35d12d2e415f235446e6b2322d23928cc1432
         """Cifar10 dataset instance
 
         Args:
             X (numpy array or tensor): features
             y (numpy array or tensor): labels
+<<<<<<< HEAD
             mode (str): train or val
         """
         self.mode = mode
         X, y = np.asarray(X), np.asarray(y)
+=======
+        """
+>>>>>>> d3e35d12d2e415f235446e6b2322d23928cc1432
         if isinstance(X, torch.Tensor):
             self.X, self.y = X, y
         else:
             self.X, self.y = torch.from_numpy(X), torch.from_numpy(y)
         self.set_ret_idx(ret=True)
+<<<<<<< HEAD
         
         mean = (0.485, 0.456, 0.406)
         std = (0.229, 0.224, 0.225)
@@ -42,6 +55,8 @@ class Cifar10(Dataset):
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
         ])}
+=======
+>>>>>>> d3e35d12d2e415f235446e6b2322d23928cc1432
     
     def __len__(self):        
         return self.X.shape[0]
@@ -50,11 +65,18 @@ class Cifar10(Dataset):
         self.ret_idx = ret
     
     def __getitem__(self, index):
+<<<<<<< HEAD
         transformed_X = self.transform[self.mode](self.X[index])
         if self.ret_idx:
             return index, transformed_X, self.y[index]
         else:
             return transformed_X, self.y[index]
+=======
+        if self.ret_idx:
+            return index, self.X[index], self.y[index]
+        else:
+            return self.X[index], self.y[index]
+>>>>>>> d3e35d12d2e415f235446e6b2322d23928cc1432
         
 def load_cifar10_test():
     """read and load cifar10 test data
@@ -114,7 +136,11 @@ def get_data(batch_size=10, random_seed=1997, binary_pos=0):
                                                       random_state=random_seed)
     
     imgList_test, labelList_test = load_cifar10_test()
+<<<<<<< HEAD
     labelList_test = np.asarray([0 if l != binary_pos else 1 for l in labelList])
+=======
+    labelList_test = np.asarray([0 if l != binary_pos else 1 for l in labelList_test])
+>>>>>>> d3e35d12d2e415f235446e6b2322d23928cc1432
     
     stats = {
         'feature_dim': (3, 32, 32), \
@@ -126,6 +152,7 @@ def get_data(batch_size=10, random_seed=1997, binary_pos=0):
         'label_distribution': Counter(labelList)
     }
 
+<<<<<<< HEAD
     trainloader = DataLoader(Cifar10(X=imgList_train, y=labelList_train), \
                             batch_size=batch_size, \
                             shuffle=True, \
@@ -140,10 +167,45 @@ def get_data(batch_size=10, random_seed=1997, binary_pos=0):
                             batch_size=batch_size, \
                             shuffle=False, \
                             num_workers=8) 
+=======
+    # trainloader = DataLoader(Cifar10(X=imgList_train, y=labelList_train), \
+    #                         batch_size=batch_size, \
+    #                         shuffle=True, \
+    #                         num_workers=8)
+    
+    # valloader = DataLoader(Cifar10(X=imgList_val, y=labelList_val), \
+    #                         batch_size=batch_size, \
+    #                         shuffle=False, \
+    #                         num_workers=8) 
+    
+    # testloader = DataLoader(Cifar10(X=imgList_test, y=labelList_test), \
+    #                         batch_size=batch_size, \
+    #                         shuffle=False, \
+    #                         num_workers=8) 
+    X_train, X_val, X_test = np.asarray(imgList_train), np.asarray(imgList_val), np.asarray(imgList_test)
+    y_train, y_val, y_test = np.asarray(labelList_train), np.asarray(labelList_val), np.asarray(labelList_test)
+    X_train, y_train = torch.from_numpy(X_train), torch.from_numpy(y_train)
+    X_val, y_val = torch.from_numpy(X_val), torch.from_numpy(y_val)
+    X_test, y_test = torch.from_numpy(X_test), torch.from_numpy(y_test)
+    
+    print(X_test.shape, y_test.shape, len(imgList_test))
+    
+    trainloader = FastTensorDataLoader(np.asarray(range(len(imgList_train))), X_train, y_train, batch_size=batch_size, shuffle=True)
+    valloader = FastTensorDataLoader(np.asarray(range(len(imgList_val))), X_val, y_val, batch_size=batch_size, shuffle=True)
+    testloader = FastTensorDataLoader(np.asarray(range(len(imgList_test))), X_test, y_test, batch_size=batch_size, shuffle=True)
+    
+>>>>>>> d3e35d12d2e415f235446e6b2322d23928cc1432
     
     return trainloader, valloader, testloader, stats
 
 
 if __name__ == "__main__":
     train, val, test, stats = get_data(batch_size=10, random_seed=1997, binary_pos=0)
+<<<<<<< HEAD
     print(stats)
+=======
+    print(stats)
+    for x, y in train:
+        print(x.shape, y.shape)
+        exit("finished")
+>>>>>>> d3e35d12d2e415f235446e6b2322d23928cc1432

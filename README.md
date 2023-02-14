@@ -42,3 +42,6 @@ python main.py --run_name WCE_trail1 \
                --method WCE \
                --rounds 300
 ```
+
+regularization x
+all s in obj and ineq constrain x
