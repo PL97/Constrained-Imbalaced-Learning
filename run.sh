@@ -3,10 +3,10 @@ CUDA_VISIBLE_DEVICES=1 python main.py --run_name AL_trail1_s \
                 --model MLP \
                 --batch_size 1024 \
                 --learning_rate 5e-4 \
-                --learning_rate_s 5e-2\
+                --learning_rate_s 5e-1\
                 --method AL_FROP \
-                --subprob_max_epoch 1 \
-                --rounds 1 \
+                --subprob_max_epoch 1000 \
+                --rounds 100 \
                 --alpha 0.99 \
                 --t 0.5 \
                 --solver AdamW \

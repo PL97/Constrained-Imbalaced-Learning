@@ -16,7 +16,12 @@ class FROP(FPOR):
     def objective(self):
         all_y = self.trainloader.targets.to(self.device)
         all_s = self.s
-        return -all_s.T@(all_y==1).double()/torch.sum(all_s)
+        # return -all_s.T@(all_y==1).double()/torch.sum(all_s)
+        
+        m = nn.Softmax(dim=1)
+        X = self.active_set['X']
+        fx = m(self.model(X))[:, 1]
+        return -all_s.T@(all_y==1).double()/torch.sum(all_s) + 0.05*torch.mean(fx.T*torch.log2(fx))
 
 
     def AL_func(self):
@@ -54,7 +59,9 @@ class FROP(FPOR):
         eqs_n = c*torch.maximum(torch.tensor(0), \
             -torch.maximum(s[neg_idx]+fx[neg_idx]-1-self.t, torch.tensor(0)) + torch.maximum(-s[neg_idx], fx[neg_idx]-self.t)
         )
-        return torch.cat([ineq.view(1, 1), torch.mean(torch.abs(eqs_n)).view(1, 1), torch.mean(torch.abs(eqs_p)).view(1, 1)], dim=0)
+        delta = 0.01
+        # return torch.cat([ineq.view(1, 1), torch.mean(torch.abs(eqs_n)).view(1, 1), torch.mean(torch.abs(eqs_p)).view(1, 1)], dim=0)
+        return torch.cat([ineq.view(1, 1), torch.log(torch.mean(torch.abs(eqs_n)).view(1, 1)/delta + 1), torch.log(torch.mean(torch.abs(eqs_p)).view(1, 1)/delta + 1)], dim=0)
     
 
     def update_langrangian_multiplier(self):

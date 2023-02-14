@@ -260,13 +260,22 @@ class FPOR(AL_base):
             prediction.extend(m(self.model(X)).detach().cpu().numpy())
             labels.extend(y.detach().cpu().numpy())
 
-        prediction = np.stack(prediction, axis=0)[:, 1].reshape(-1, 1).tolist()
-        labels = np.stack(labels, axis=0).reshape(-1, 1).tolist()
-        print(prediction.shape, labels.shape)
+        prediction = np.stack(prediction, axis=0)[:, 1].flatten().tolist()
+        labels = np.stack(labels, axis=0).reshape(-1, 1).flatten().tolist()
+        # print(prediction.shape, labels.shape)
         
-        tmp_df = pd.DataFrame({"prediciton": prediction, "target": labels})
-        sns.displot(tmp_df, x="prediciton", hue="target")
+        tmp_df = pd.DataFrame({"prediciton": prediction, "target": labels, "s": self.s.detach().cpu().flatten().tolist()})
+        print(tmp_df.head())
+        ax = sns.displot(data=tmp_df, x="prediciton", hue="target")
+        ax.fig.set_figwidth(10)
+        ax.fig.set_figheight(5)
         plt.savefig("distribution.png")
+        
+        ax = sns.displot(data=tmp_df, x="s", hue="target")
+        ax.fig.set_figwidth(10)
+        ax.fig.set_figheight(5)
+        plt.savefig("s_distribution.png")
+
 
         return self.model
     
