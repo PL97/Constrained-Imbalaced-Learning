@@ -104,7 +104,8 @@ class FPOR(AL_base):
         n_pos = torch.sum(all_y==1)
         m = nn.Softmax(dim=1)
         return -s.T@(all_y==1).double()/n_pos
-        # return -s.T@(all_y==1).double()/n_pos - s.T@torch.log2(s)
+        # fx = m(self.model(X))[:, 1].view(-1, 1)
+        # return -s.T@(all_y==1).double()/n_pos - torch.mean(fx.T*torch.log2(fx))
         
         
         # m = nn.Softmax(dim=1)
@@ -137,9 +138,10 @@ class FPOR(AL_base):
             -torch.maximum(s[neg_idx]+fx[neg_idx]-1-self.t, torch.tensor(0)) + torch.maximum(-s[neg_idx], fx[neg_idx]-self.t)
         )
         
-        delta = 0.01
-        delta_2 = 0.001
+        delta = 1
+        delta_2 = 1
         return torch.cat([torch.log(ineq/delta + 1).view(1, 1), torch.log(eqs_n/delta_2 + 1), torch.log(eqs_p/delta_2 + 1)])
+        # return torch.cat([ineq.view(1, 1), eqs_n, eqs_p])
         # return torch.cat([ineq.view(1, 1), (torch.mean(torch.abs(eqs_n))).view(1, 1), (torch.mean(torch.abs(eqs_p))).view(1, 1)], dim=0)
         # delta = 1
         # return torch.cat([ineq.view(1, 1), torch.log(torch.mean(torch.abs(eqs_n)).view(1, 1)/delta + 1), torch.log(torch.mean(torch.abs(eqs_p)).view(1, 1)/delta + 1)], dim=0)

@@ -1,11 +1,11 @@
 CUDA_VISIBLE_DEVICES=1 python main.py --run_name AL_trail1_s \
-                --dataset diabetic \
+                --dataset cifar100 \
                 --model MLP \
                 --batch_size 1024 \
-                --learning_rate 5e-4 \
-                --learning_rate_s 5e-2\
+                --learning_rate 1e-4 \
+                --learning_rate_s 1e-2\
                 --method AL_FROP \
-                --subprob_max_epoch 1000 \
+                --subprob_max_epoch 500 \
                 --rounds 10 \
                 --alpha 0.99 \
                 --t 0.5 \
