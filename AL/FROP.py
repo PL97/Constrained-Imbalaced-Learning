@@ -15,13 +15,13 @@ class FROP(FPOR):
     
     def objective(self):
         all_y = self.trainloader.targets.to(self.device)
-        all_s = self.s
-        # return -all_s.T@(all_y==1).double()/torch.sum(all_s)
+        all_s = self.s * self.lr_adaptor
+        return -all_s.T@(all_y==1).double()/torch.sum(all_s)
         
-        m = nn.Softmax(dim=1)
-        X = self.active_set['X']
-        fx = m(self.model(X))[:, 1]
-        return -all_s.T@(all_y==1).double()/torch.sum(all_s) + 0.05*torch.mean(fx.T*torch.log2(fx))
+        # m = nn.Softmax(dim=1)
+        # X = self.active_set['X']
+        # fx = m(self.model(X))[:, 1]
+        # return -all_s.T@(all_y==1).double()/torch.sum(all_s) + 0.05*torch.mean(fx.T*torch.log2(fx))
 
 
     def AL_func(self):
@@ -32,17 +32,19 @@ class FROP(FPOR):
         """
         X = self.active_set['X']
         X = X.to(self.device)
-        c=1
+        # c=1
+        # return self.objective() + self.ls.T@self.constrain() \
+        #         + (self.rho/c)* torch.sum(torch.exp(c*self.constrain())-1)
         return self.objective() + self.ls.T@self.constrain() \
-                + (self.rho/c)* torch.sum(torch.exp(c*self.constrain())-1)
+                + (self.rho/2)* torch.sum(self.constrain()**2)
 
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
     ## another option C(x) <= 0 to log(e(x)+1)
     def constrain(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
         all_y = self.trainloader.targets.to(self.device)
-        s = self.s[idx]
-        all_s = self.s
+        s = self.s[idx] * self.lr_adaptor
+        all_s = self.s * self.lr_adaptor
         fx = self.model(X)
 
         ineq = torch.maximum(torch.tensor(0), \
@@ -70,5 +72,5 @@ class FROP(FPOR):
         constrain_output = self.constrain()
         self.ls += self.rho*constrain_output
         self.rho *= self.delta
-        self.ls = torch.maximum(self.ls, torch.tensor(0))
+        # self.ls = torch.maximum(self.ls, torch.tensor(0))
     

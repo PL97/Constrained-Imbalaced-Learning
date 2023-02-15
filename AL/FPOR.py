@@ -43,6 +43,8 @@ class FPOR(AL_base):
         self.delta = self.args.delta                         #1
         self.workspace = self.args.workspace
         
+        self.lr_adaptor = 1
+        
         
         ## track hyparam
         self.wandb_run = wandb.init(project=self.args.method, \
@@ -71,6 +73,8 @@ class FPOR(AL_base):
         ## optimization variables: ls are Lagrangian multipliers
         self.s = torch.randn((args.datastats['train_num'], 1), requires_grad=True, \
                             dtype=torch.float64, device=self.device)
+        self.s = torch.sigmoid(self.s)
+        self.s.data.copy_(trainloader.targets)
 
         num_constrains = args.num_constrains
             
@@ -89,25 +93,31 @@ class FPOR(AL_base):
         self.optimizer = args.solver
         
         self.earlystopper = EarlyStopper(patience=10)
-        self.beta = 1
+        self.beta = 1 ## to calualte the F-Beta score
     
     def objective(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
         # s = self.s[idx]
-        s = self.s
+        s = self.adjust_s(self.s)
         # all_y = y.to(self.device)
         all_y = self.trainloader.targets.to(self.device)
         n_pos = torch.sum(all_y==1)
         m = nn.Softmax(dim=1)
         return -s.T@(all_y==1).double()/n_pos
+        # return -s.T@(all_y==1).double()/n_pos - s.T@torch.log2(s)
+        
+        
+        # m = nn.Softmax(dim=1)
+        # fx = m(self.model(X))[:, 1]
+        # return -s.T@(all_y==1).double()/n_pos - 10*torch.mean(y*torch.log2(fx))
 
     
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
     def constrain(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
         all_y = self.trainloader.targets.to(self.device)
-        s = self.s[idx]
-        all_s = self.s
+        s = self.adjust_s(self.s[idx])
+        all_s = self.adjust_s(self.s)
         m = nn.Softmax(dim=1)
         X = X.float()
         fx = m(self.model(X))[:, 1].view(-1, 1)
@@ -126,7 +136,14 @@ class FPOR(AL_base):
         eqs_n = torch.maximum(torch.tensor(0), \
             -torch.maximum(s[neg_idx]+fx[neg_idx]-1-self.t, torch.tensor(0)) + torch.maximum(-s[neg_idx], fx[neg_idx]-self.t)
         )
-        return torch.cat([ineq.view(1, 1), (torch.mean(torch.abs(eqs_n))).view(1, 1), (torch.mean(torch.abs(eqs_p))).view(1, 1)], dim=0)
+        
+        delta = 0.01
+        delta_2 = 0.001
+        return torch.cat([torch.log(ineq/delta + 1).view(1, 1), torch.log(eqs_n/delta_2 + 1), torch.log(eqs_p/delta_2 + 1)])
+        # return torch.cat([ineq.view(1, 1), (torch.mean(torch.abs(eqs_n))).view(1, 1), (torch.mean(torch.abs(eqs_p))).view(1, 1)], dim=0)
+        # delta = 1
+        # return torch.cat([ineq.view(1, 1), torch.log(torch.mean(torch.abs(eqs_n)).view(1, 1)/delta + 1), torch.log(torch.mean(torch.abs(eqs_p)).view(1, 1)/delta + 1)], dim=0)
+    
     
     
     def warmstart(self):
@@ -166,20 +183,13 @@ class FPOR(AL_base):
         for idx, X, y in self.trainloader:
             X = X.to(self.device)
             X = X.float()
-            self.s[idx] += (m(self.model(X))[:, 1].view(-1, 1) >= self.t).int()
+            self.s[idx] += (m(self.model(X))[:, 1].view(-1, 1) >= self.t).int()/self.lr_adaptor
 
     def fit(self):
         if self.warm_start > 0:
             self.warmstart()
         
-        # self.active_set = {
-        #     'X': self.trainloader.data,
-        #     'y': self.trainloader.targets, 
-        #     's': self.s,
-        #     'idx': list(range(self.trainloader.targets.shape[0]))
-        # }
-        # self.pre_constrain = self.constrain()
-        self.initialize_with_feasiblity()
+        # self.initialize_with_feasiblity()
         m = nn.Sigmoid()
         for r in range(self.rounds):
             # Log gradients and model parameters
@@ -191,8 +201,6 @@ class FPOR(AL_base):
                 if self.earlystopper.early_stop(Lag_loss):
                     print(f"train for {_} iterations")
                     break
-                # with torch.no_grad():
-                #     self.s.data.copy_(m(self.s.data-self.t) >= self.t)
         
             self.earlystopper.reset()
             # wandb.watch(self.model)        
@@ -245,67 +253,6 @@ class FPOR(AL_base):
         except:
             print("skip AL...")
         
-
-        ## visualize the prediciton distribution  and algiment with s
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        import pandas as pd
-
-        prediction = []
-        labels = []
-        m = nn.Sigmoid()
-        for idx, X, y in self.trainloader:
-            X = X.float()
-            X, y = X.to(self.device), y.to(self.device)
-            prediction.extend(m(self.model(X)).detach().cpu().numpy())
-            labels.extend(y.detach().cpu().numpy())
-
-        prediction = np.stack(prediction, axis=0)[:, 1].flatten().tolist()
-        labels = np.stack(labels, axis=0).reshape(-1, 1).flatten().tolist()
-        # print(prediction.shape, labels.shape)
-        
-        tmp_df = pd.DataFrame({"prediciton": prediction, "target": labels, "s": self.s.detach().cpu().flatten().tolist()})
-        print(tmp_df.head())
-        ax = sns.displot(data=tmp_df, x="prediciton", hue="target")
-        ax.fig.set_figwidth(10)
-        ax.fig.set_figheight(5)
-        plt.savefig("distribution.png")
-        
-        ax = sns.displot(data=tmp_df, x="s", hue="target")
-        ax.fig.set_figwidth(10)
-        ax.fig.set_figheight(5)
-        plt.savefig("s_distribution.png")
-
+        self.draw_graphs()
 
         return self.model
-    
-    @torch.no_grad()
-    def test(self, dataloader):
-        """_summary_
-
-        Args:
-            dataloader (torch.utils.DataLoader): the data that is going to be tested
-
-        Returns:
-            precision: precision of the classificaiton model, defined as TP/(TP+FP)
-            recall: recall of the classificaiton model, defined as TP/(TP+FN)
-        """
-        self.model.eval()
-        m = nn.Softmax(dim=1)
-        prediction = []
-        labels = []
-        for _, X, y in dataloader:
-            X = X.float()
-            X, y = X.to(self.device), y.to(self.device)
-            prediction.extend((m(self.model(X))[:, 1].detach().cpu().numpy() >= self.t).astype(int))
-            labels.extend(y)
-            
-        prediction = np.stack(prediction, axis=0).reshape(-1, 1)
-        labels = torch.stack(labels, axis=0).detach().cpu().numpy()
-        TP = int(prediction.T@(labels==1).astype(int))
-        precision = 1.0*TP/np.sum(prediction)
-        recall = 1.0*TP/np.sum(labels==1)
-        f_beta = (1+self.beta**2) * (precision*recall)/((self.beta**2)*precision+recall)
-        AP = average_precision_score(y_true=labels, y_score=prediction)
-        metric = {"precision": precision, "recall": recall, "F_beta": f_beta, "AP": AP}
-        return metric

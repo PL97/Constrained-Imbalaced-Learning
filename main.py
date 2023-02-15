@@ -120,7 +120,8 @@ if __name__ == "__main__":
         criterion = WCE(npos=stats["label_distribution"][1], nneg=stats["label_distribution"][0], device=device)
         args.criterion = criterion
         if args.method == "AL_FPOR":
-            args.num_constrains = 3
+            # args.num_constrains = 3
+            args.num_constrains = stats['train_num'] + 1
             trainer = FPOR(trainloader, \
                         valloader, \
                         device=device, model=model, args=args)  
