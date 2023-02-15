@@ -74,7 +74,7 @@ class FPOR(AL_base):
         self.s = torch.randn((args.datastats['train_num'], 1), requires_grad=True, \
                             dtype=torch.float64, device=self.device)
         self.s = torch.sigmoid(self.s)
-        self.s.data.copy_(trainloader.targets)
+        # self.s.data.copy_(trainloader.targets)
 
         num_constrains = args.num_constrains
             
