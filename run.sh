@@ -4,7 +4,7 @@ CUDA_VISIBLE_DEVICES=1 python main.py --run_name AL_trail1_s \
                 --batch_size 1024 \
                 --learning_rate 5e-4 \
                 --learning_rate_s 5e-2\
-                --method AL_FROP \
+                --method AL_OFBS \
                 --subprob_max_epoch 1000 \
                 --rounds 100 \
                 --alpha 0.99 \

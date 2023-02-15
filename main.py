@@ -132,7 +132,8 @@ if __name__ == "__main__":
                         valloader, \
                         device=device, model=model, args=args)
         elif args.method == "AL_OFBS":
-            args.num_constrains = 2
+            # args.num_constrains = 2
+            args.num_constrains = stats['train_num']
             trainer = OFBS(trainloader, \
                         valloader, \
                         device=device, model=model, args=args)
