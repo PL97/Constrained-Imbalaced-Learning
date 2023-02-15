@@ -6,7 +6,7 @@ CUDA_VISIBLE_DEVICES=1 python main.py --run_name AL_trail1_s \
                 --learning_rate_s 5e-2\
                 --method AL_FROP \
                 --subprob_max_epoch 1000 \
-                --rounds 100 \
+                --rounds 10 \
                 --alpha 0.99 \
                 --t 0.5 \
                 --solver AdamW \
