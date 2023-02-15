@@ -15,7 +15,7 @@ class FROP(FPOR):
     
     def objective(self):
         all_y = self.trainloader.targets.to(self.device)
-        all_s = self.s * self.lr_adaptor
+        all_s = self.adjust_s(self.s)
         return -all_s.T@(all_y==1).double()/torch.sum(all_s)
         
 
@@ -24,8 +24,8 @@ class FROP(FPOR):
     def constrain(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
         all_y = self.trainloader.targets.to(self.device)
-        s = self.s[idx] * self.lr_adaptor
-        all_s = self.s * self.lr_adaptor
+        s = self.adjust_s(self.s[idx])
+        all_s = self.adjust_s(self.s)
         m = nn.Softmax(dim=1)
         fx = m(self.model(X))[:, 1].view(-1, 1)
 
