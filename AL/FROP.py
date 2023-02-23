@@ -14,9 +14,11 @@ from AL.FPOR import FPOR
 class FROP(FPOR):
     
     def objective(self):
+        X = self.active_set['X'].to(self.device)
         all_y = self.trainloader.targets.to(self.device)
         all_s = self.adjust_s(self.s)
-        return -all_s.T@(all_y==1).double()/torch.sum(all_s)
+        fx = m(self.model(X))[:, 1].view(-1, 1)
+        return -all_s.T@(all_y==1).double()/torch.sum(all_s) - 0.1*torch.norm(fx *(1-fx))/idx.shape[0]
         
 
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0

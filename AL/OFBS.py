@@ -18,7 +18,7 @@ class OFBS(FPOR):
         all_y = self.trainloader.targets.to(self.device)
         all_s = self.adjust_s(self.s)
         eps = 1e-9
-        return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2)
+        return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2)  - 0.1*torch.norm(fx *(1-fx))/idx.shape[0]
         # return (all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2)/all_s.T@(all_y==1).double()
 
 
