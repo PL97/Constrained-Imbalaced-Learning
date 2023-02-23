@@ -45,13 +45,4 @@ class FROP(FPOR):
         delta = 0.01
         delta_2 = 0.001
         return torch.cat([torch.log(ineq/delta + 1).view(1, 1), torch.log(eqs_n/delta_2 + 1), torch.log(eqs_p/delta_2 + 1)])
-
-
-    def update_langrangian_multiplier(self):
-        """update the lagrangian multipler
-        """
-        constrain_output = self.constrain()
-        self.ls += self.rho*constrain_output
-        self.rho *= self.delta
-        # self.ls = torch.maximum(self.ls, torch.tensor(0))
     

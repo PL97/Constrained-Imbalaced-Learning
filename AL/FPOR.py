@@ -94,6 +94,7 @@ class FPOR(AL_base):
         
         self.earlystopper = EarlyStopper(patience=10)
         self.beta = 1 ## to calualte the F-Beta score
+        self.pre_constrain = np.inf
     
     def objective(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
@@ -103,14 +104,11 @@ class FPOR(AL_base):
         all_y = self.trainloader.targets.to(self.device)
         n_pos = torch.sum(all_y==1)
         m = nn.Softmax(dim=1)
-        return -s.T@(all_y==1).double()/n_pos
-        # fx = m(self.model(X))[:, 1].view(-1, 1)
-        # return -s.T@(all_y==1).double()/n_pos - torch.mean(fx.T*torch.log2(fx))
+        # return -s.T@(all_y==1).double()/n_pos
+        fx = m(self.model(X))[:, 1].view(-1, 1)
+        # return -s.T@(all_y==1).double()/n_pos - 0.1*torch.mean(fx.T*torch.log2(fx))
+        return -s.T@(all_y==1).double()/n_pos - 0.1*torch.norm(fx *(1-fx))/idx.shape[0]
         
-        
-        # m = nn.Softmax(dim=1)
-        # fx = m(self.model(X))[:, 1]
-        # return -s.T@(all_y==1).double()/n_pos - 10*torch.mean(y*torch.log2(fx))
 
     
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0

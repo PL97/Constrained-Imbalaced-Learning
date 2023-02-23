@@ -33,9 +33,10 @@ class AL_base:
         Returns:
             augmented lagrangian function
         """
-        X = self.active_set['X']
+        X, idx = self.active_set['X'], self.active_set['idx']
+        ls = torch.cat([self.ls[idx], self.ls[-1].reshape(1, 1)])
         X = X.to(self.device)
-        return self.objective() + self.ls.T@self.constrain() \
+        return self.objective() + ls.T@self.constrain() \
                 + (self.rho/2)* torch.sum(self.constrain()**2)
 
     
@@ -95,18 +96,22 @@ class AL_base:
     def update_langrangian_multiplier(self):
         """update the lagrangian multipler
         """
-        # self.active_set = {
-        #     'X': self.trainloader.data,
-        #     'y': self.trainloader.targets, 
-        #     's': self.s,
-        #     'idx': list(range(self.trainloader.targets.shape[0]))
-        # }
-        constrain_output = self.constrain()
-        self.ls += self.rho*constrain_output
+        tmp_constrains = 0
+        tmp_ineq = self.ls[-1]
+        count_updates = 0
+        for idx, X, y in self.trainloader:
+            count_updates += 1
+            X, y = X.to(self.device), y.to(self.device)
+            self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
+            constrain_output = self.constrain()
+            self.ls[idx] += self.rho*constrain_output[:-1]
+            self.ls[-1] += self.rho*constrain_output[-1]
+            tmp_constrains += torch.norm(constrain_output).item()
+        self.ls[-1] = tmp_ineq + (self.ls[-1] - tmp_ineq)/count_updates  ## readjust update steps
         self.rho *= self.delta
-        # if torch.norm(constrain_output) > torch.norm(self.pre_constrain, p=1):
-        #     self.rho *= self.delta
-        # self.pre_constrain = constrain_output
+        if tmp_constrains > self.pre_constrain:
+            self.rho *= self.delta
+            self.pre_constrain = tmp_constrains
     
     def fit(self):
         """solve the constrained problem, in each round we iterativly solve the sub problem and update the lagrangian multiplier

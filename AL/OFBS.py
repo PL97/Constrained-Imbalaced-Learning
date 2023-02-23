@@ -40,11 +40,32 @@ class OFBS(FPOR):
         
         delta_2 = 0.001
         return torch.cat([torch.log(eqs_n/delta_2 + 1), torch.log(eqs_p/delta_2 + 1)])
+    
+    def AL_func(self):
+        """defines the augmented lagrangian function based on the objective function and constrains
 
+        Returns:
+            augmented lagrangian function
+        """
+        X, idx = self.active_set['X'], self.active_set['idx']
+        ls = self.ls[idx]
+        X = X.to(self.device)
+        return self.objective() + ls.T@self.constrain() \
+                + (self.rho/2)* torch.sum(self.constrain()**2)
+                
     def update_langrangian_multiplier(self):
         """update the lagrangian multipler
         """
-        constrain_output = self.constrain()
-        self.ls += self.rho*constrain_output
-        self.ls = torch.maximum(self.ls, torch.tensor(0))
+        tmp_constrains = 0
+        count_updates = 0
+        for idx, X, y in self.trainloader:
+            count_updates += 1
+            X, y = X.to(self.device), y.to(self.device)
+            self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
+            constrain_output = self.constrain()
+            self.ls[idx] += self.rho*constrain_output
+            tmp_constrains += torch.norm(constrain_output).item()
         self.rho *= self.delta
+        if tmp_constrains > self.pre_constrain:
+            self.rho *= self.delta
+            self.pre_constrain = tmp_constrains
