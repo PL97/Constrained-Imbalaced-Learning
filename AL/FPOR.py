@@ -44,6 +44,7 @@ class FPOR(AL_base):
         self.workspace = self.args.workspace
         
         self.lr_adaptor = 1
+        self.r = 0
         
         
         ## track hyparam
@@ -73,7 +74,7 @@ class FPOR(AL_base):
         ## optimization variables: ls are Lagrangian multipliers
         self.s = torch.randn((args.datastats['train_num'], 1), requires_grad=True, \
                             dtype=torch.float64, device=self.device)
-        self.s = torch.sigmoid(self.s)
+        # self.s = torch.sigmoid(self.s)
         # self.s.data.copy_(trainloader.targets)
 
         num_constrains = args.num_constrains
@@ -107,7 +108,7 @@ class FPOR(AL_base):
         # return -s.T@(all_y==1).double()/n_pos
         fx = m(self.model(X))[:, 1].view(-1, 1)
         # return -s.T@(all_y==1).double()/n_pos - 0.1*torch.mean(fx.T*torch.log2(fx))
-        return -s.T@(all_y==1).double()/n_pos - 0.1*torch.norm(fx *(1-fx))/idx.shape[0]
+        return -s.T@(all_y==1).double()/n_pos + 0.1*torch.norm(fx *(1-fx))/idx.shape[0]
         
 
     
@@ -192,6 +193,7 @@ class FPOR(AL_base):
         # self.initialize_with_feasiblity()
         m = nn.Sigmoid()
         for r in range(self.rounds):
+            self.r = r
             # Log gradients and model parameters
             self.model.train()
             for _ in range(self.subprob_max_epoch):

@@ -18,7 +18,17 @@ class OFBS(FPOR):
         all_y = self.trainloader.targets.to(self.device)
         all_s = self.adjust_s(self.s)
         eps = 1e-9
-        return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2)  - 0.1*torch.norm(fx *(1-fx))/idx.shape[0]
+        X, idx = self.active_set['X'].to(self.device), self.active_set['idx']
+        m = nn.Softmax(dim=1)
+        fx = m(self.model(X))[:, 1].view(-1, 1)
+        penalty = 0.5
+        # if self.r < 10:
+        #     penalty = 0
+        # else:
+        #     penalty = 10
+        return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) + penalty*torch.norm(fx *(1-fx))/idx.shape[0]
+        # 
+        # return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) - penalty*fx.T@torch.log2(fx)/idx.shape[0] - penalty*(1-fx).T@torch.log2(1-fx)/idx.shape[0]
         # return (all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2)/all_s.T@(all_y==1).double()
 
 
@@ -38,7 +48,7 @@ class OFBS(FPOR):
             -torch.maximum(s[neg_idx]+fx[neg_idx]-1-self.t, torch.tensor(0)) + torch.maximum(-s[neg_idx], fx[neg_idx]-self.t)
         )
         
-        delta_2 = 0.001
+        delta_2 = 0.01
         return torch.cat([torch.log(eqs_n/delta_2 + 1), torch.log(eqs_p/delta_2 + 1)])
     
     def AL_func(self):
