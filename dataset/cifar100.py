@@ -65,13 +65,13 @@ def get_data(batch_size=10, random_seed=1997, binary_pos=0, with_idx=True):
     path_to_DB = "../data/cifar-10-batches-py/"
     
     imgList, labelList, coause_labelList, labelNames = load_cifar100_train()
-    # labelList = np.asarray([0 if l != binary_pos else 1 for l in labelList])
+    labelList = np.asarray([0 if l != binary_pos else 1 for l in labelList])
     
     ## only consider classify class 1 from class 0
-    imgList, labelList = np.asarray(imgList), np.asarray(labelList)
-    binary_idx = np.where(np.asarray(labelList)<=1)[0]
-    imgList = imgList[binary_idx]
-    labelList = labelList[binary_idx]
+    # imgList, labelList = np.asarray(imgList), np.asarray(labelList)
+    # binary_idx = np.where(np.asarray(labelList)<=1)[0]
+    # imgList = imgList[binary_idx]
+    # labelList = labelList[binary_idx]
     
     ## split train data into train and val
     imgList_train, imgList_val, labelList_train, labelList_val = train_test_split(imgList, \
@@ -81,12 +81,12 @@ def get_data(batch_size=10, random_seed=1997, binary_pos=0, with_idx=True):
                                                       random_state=random_seed)
     
     imgList_test, labelList_test, coause_labelList = load_cifar100_test()
-    # labelList_test = np.asarray([0 if l != binary_pos else 1 for l in labelList_test])
+    labelList_test = np.asarray([0 if l != binary_pos else 1 for l in labelList_test])
     ## only consider classify class 1 from class 0
-    imgList_test, labelList_test = np.asarray(imgList_test), np.asarray(labelList_test)
-    binary_idx = np.where(np.asarray(labelList_test)<=1)[0]
-    imgList_test = imgList_test[binary_idx]
-    labelList_test = labelList_test[binary_idx]
+    # imgList_test, labelList_test = np.asarray(imgList_test), np.asarray(labelList_test)
+    # binary_idx = np.where(np.asarray(labelList_test)<=1)[0]
+    # imgList_test = imgList_test[binary_idx]
+    # labelList_test = labelList_test[binary_idx]
     
     stats = {
         'feature_dim': (3, 32, 32), \
