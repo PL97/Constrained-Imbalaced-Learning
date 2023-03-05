@@ -48,6 +48,8 @@ class AL_base:
         """solve the sub problem (stochastic)
         """
         m = nn.Sigmoid()
+        if not self.sto:
+            self.optim.zero_grad()
         for idx, X, y in self.trainloader:
             X, y = X.to(self.device), y.to(self.device)
             self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
@@ -55,10 +57,12 @@ class AL_base:
             tmp_s = deepcopy(self.s.data)
 
             if self.solver.lower() == "AdamW".lower():
-                self.optim.zero_grad()
+                if self.sto:
+                    self.optim.zero_grad()
                 L = self.AL_func()
                 L.backward()
-                self.optim.step()
+                if self.sto:
+                    self.optim.step()
             else:
                 # L-BFGS
                 def closure():
@@ -77,7 +81,8 @@ class AL_base:
                     # tmp_s[i] = torch.sigmoid(self.s.data[i] - self.t) ## correct the bias by shif to right with a threhsold of 0.5
                 self.s.data.copy_(tmp_s)
                 # self.s.data.copy_(m(self.s.data-self.t) >= self.t)
-                
+        if not self.sto:
+            self.optim.step()
         
 
         with torch.no_grad():

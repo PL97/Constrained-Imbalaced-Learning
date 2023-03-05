@@ -42,6 +42,7 @@ class FPOR(AL_base):
         self.rho = self.args.rho                             #10
         self.delta = self.args.delta                         #1
         self.workspace = self.args.workspace
+        self.sto = self.args.sto
         
         self.lr_adaptor = 1
         self.r = 0
@@ -255,6 +256,6 @@ class FPOR(AL_base):
         except:
             print("skip AL...")
         
-        self.draw_graphs()
+        # self.draw_graphs()
 
         return self.model

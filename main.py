@@ -48,6 +48,7 @@ def setup():
     parser.add_argument('--learning_rate_s', type=float, default=1)
     parser.add_argument('--delta', type=float, default=1)
     parser.add_argument('--rho', type=float, default=10)
+    parser.add_argument('--sto', type=int, default=0)
     
     
     args = parser.parse_args()
