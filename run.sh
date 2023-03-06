@@ -1,18 +1,19 @@
-CUDA_VISIBLE_DEVICES=0 python main.py --run_name AL_trail1_s \
-                --dataset cifar100 \
+CUDA_VISIBLE_DEVICES=3 python main.py --run_name AL_trail1_s \
+                --dataset wilt\
                 --model MLP \
                 --batch_size 1000 \
                 --learning_rate 5e-4 \
                 --learning_rate_s 5e-2\
-                --method AL_FPOR \
-                --subprob_max_epoch 500 \
-                --rounds 20 \
+                --method AL_FROP \
+                --subprob_max_epoch 200 \
+                --rounds 50 \
                 --alpha 0.99 \
                 --t 0.5 \
                 --solver AdamW \
-                --warm_start 0 \
+                --warm_start 50 \
                 --rho 1 \
-                --delta 1
+                --delta 1 \
+                --sto 1
 
                 
 
@@ -22,4 +23,4 @@ CUDA_VISIBLE_DEVICES=0 python main.py --run_name AL_trail1_s \
 #                --learning_rate 1e-4 \
 #                --method WCE \
 #                --rounds 300 \
-#                --batch_size 256         
+#                --batch_size 4000         

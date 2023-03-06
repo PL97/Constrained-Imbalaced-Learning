@@ -94,7 +94,7 @@ class FPOR(AL_base):
         
         self.optimizer = args.solver
         
-        self.earlystopper = EarlyStopper(patience=10)
+        self.earlystopper = EarlyStopper(patience=5)
         self.beta = 1 ## to calualte the F-Beta score
         self.pre_constrain = np.inf
     
@@ -109,7 +109,15 @@ class FPOR(AL_base):
         # return -s.T@(all_y==1).double()/n_pos
         fx = m(self.model(X))[:, 1].view(-1, 1)
         # return -s.T@(all_y==1).double()/n_pos - 0.1*torch.mean(fx.T*torch.log2(fx))
-        return -s.T@(all_y==1).double()/n_pos + 0.1*torch.norm(fx *(1-fx))/idx.shape[0]
+        # return -s.T@(all_y==1).double()/n_pos
+        n_pos = torch.sum(all_y==1)
+        n_negs = torch.sum(all_y==0)
+        weights = torch.tensor([n_pos/(n_pos+n_negs), n_negs/(n_negs+n_pos)]).to(self.device)
+        weights = weights/(n_pos/(n_pos+n_negs))
+        reweights = torch.ones(X.shape[0], 1).to(self.device)
+        reweights[y==1] = weights[1]
+
+        return -s.T@(all_y==1).double()/n_pos + 0.1*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
         
 
     
