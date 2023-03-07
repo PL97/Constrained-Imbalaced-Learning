@@ -146,7 +146,7 @@ class OAP(AL_base):
         constrains_2 = torch.stack(constrains_2)
         delta = 1
         delta_2 = 1
-        ret = torch.cat([torch.sum(torch.log(constrains_1/delta + 1)).view(1, 1), torch.sum(torch.log(constrains_2/delta_2 + 1)).view(1, 1)])
+        ret = torch.cat([torch.mean(torch.log(constrains_1/delta + 1)).view(1, 1), torch.mean(torch.log(constrains_2/delta_2 + 1)).view(1, 1)])
         return ret.double()
     
                 
@@ -175,10 +175,135 @@ class OAP(AL_base):
             count_updates += 1
             X, y = X.to(self.device), y.to(self.device)
             self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
-            constrain_output = self.constrain()
-            self.ls[idx] += self.rho*constrain_output
-            tmp_constrains += torch.norm(constrain_output).item()
+            # constrain_output = self.constrain()
+            # self.ls[idx] += self.rho*constrain_output
+            # tmp_constrains += torch.norm(constrain_output).item()
+
+        self.ls += self.rho * self.constrain()
         self.rho *= self.delta
         if tmp_constrains > self.pre_constrain:
             self.rho *= self.delta
             self.pre_constrain = tmp_constrains
+
+
+
+
+    def warmstart(self):
+        """warm start to get a good initialization, empirically this can speedup the convergence and improve the performance
+        """
+        optim = AdamW([
+                {'params': self.model.parameters(), 'lr': self.lr}
+                ])
+        # criterion = WCE(npos=torch.sum(self.y==1).item(), nneg=torch.sum(self.y==0).item(), device=self.device)
+        criterion = self.args.criterion
+        for epoch in range(self.warm_start):
+            self.model.train()
+            for _, X, y in self.trainloader:
+                y = y.view(-1).long()
+                X = X.float()
+                X, y = X.to(self.device), y.to(self.device)
+                optim.zero_grad()
+                loss = criterion(self.model(X), y.flatten().long())
+                loss.backward()
+                optim.step()
+                
+            with torch.no_grad():
+                self.model.eval()
+                train_metrics = self.test(self.trainloader)
+                
+                print(f"========== Warm Start Round {epoch}/{self.warm_start} ===========")
+                print("Precision: {:.3f} \t Recall {:.3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
+                        train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
+
+    
+    @torch.no_grad()
+    def initialize_with_feasiblity(self):
+        """Another trick that boost the performance, initialize variable s with feasiblity guarantee
+        """
+        m = nn.Softmax(dim=1)
+        self.s -= self.s
+        for idx, X, y in self.trainloader:
+            X = X.to(self.device)
+            X = X.float()
+            self.s[idx] += (m(self.model(X))[:, 1].view(-1, 1) >= self.t).int()/self.lr_adaptor
+
+    def fit(self):
+        if self.warm_start > 0:
+            self.warmstart()
+        
+        # self.initialize_with_feasiblity()
+        m = nn.Sigmoid()
+        for r in range(self.rounds):
+            self.r = r
+            # Log gradients and model parameters
+            self.model.train()
+            for _ in range(self.subprob_max_epoch):
+                # print(f"================= {_} ==============")
+                Lag_loss = self.solve_sub_problem()
+                # print(f"lagrangian value: {Lag_loss}")
+                if self.earlystopper.early_stop(Lag_loss):
+                    print(f"train for {_} iterations")
+                    break
+        
+            self.earlystopper.reset()
+            # wandb.watch(self.model)        
+            ## update lagrangian multiplier and evaluation
+            # self.initialize_with_feasiblity()
+            with torch.no_grad():
+                self.model.eval()
+                self.update_langrangian_multiplier()
+                
+                ## log training performance
+                train_metrics = self.test(self.trainloader)
+                val_metrics = self.test(self.valloader)
+                test_metrics = self.test(self.testloader)
+                
+                print(f"========== Round {r}/{self.rounds} ===========")
+                print("Precision: {:3f} \t Recall {:3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
+                        train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
+                constrains = self.constrain()
+                print("Obj: {}\tIEQ: {}\tEQ: {}".format(self.objective().item(), constrains[0].item(), torch.sum(constrains[1:]).item()))
+                print("(val)Precision: {:3f} \t Recall {:3f} F_beta {:.3f} AP:{:.3f}".format(\
+                        val_metrics['precision'], val_metrics['recall'], val_metrics['F_beta'], val_metrics['AP']))
+                  
+                print("(test)Precision: {:3f} \t Recall {:3f} F_beta {:.3f} AP:{:.3f}".format(\
+                        test_metrics['precision'], test_metrics['recall'], test_metrics['F_beta'], test_metrics['AP']))
+                  
+                
+                
+                wandb.log({ "trainer/global_step": r, \
+                            "train/Obj": self.objective().item(), \
+                            "train/IEQ": constrains[0].item(), \
+                            "train/EQ": torch.sum(constrains[1:]).item(), \
+                            "train/Precision": train_metrics['precision'], \
+                            "train/Recall": train_metrics['recall'], \
+                            "train/F_beta": train_metrics['F_beta' ], \
+                            "train/AP": train_metrics['AP'], \
+                            "val/Precision": val_metrics['precision'], \
+                            "val/Recall": val_metrics['recall'], \
+                            "val/F_beta": val_metrics['F_beta'], \
+                            "val/AP": val_metrics['AP'], \
+                            "test/Precision": test_metrics['precision'], \
+                            "test/Recall": test_metrics['recall'], \
+                            "test/F_beta": test_metrics['F_beta'], \
+                            "test/AP": test_metrics['AP']
+                            })
+                
+        
+        final_model_name = f"{self.workspace}/final.pt"
+        torch.save(self.model, final_model_name)
+        # art_model = wandb.Artifact(f"{self.args.dataset}-{self.args.model}-{self.wandb_run.id}", type='model')
+        # art_model.add_file(final_model_name)
+        # wandb.log_artifact(art_model, aliases=["final"])
+        
+        try:
+            wandb.run.summary["train_precision"] = train_metrics['precision']
+            wandb.run.summary["train_recall"] = train_metrics['recall']
+            wandb.run.summary["val_precision"] = val_metrics['precision']
+            wandb.run.summary["val_recall"] = val_metrics['recall']
+        except:
+            print("skip AL...")
+        
+        # self.draw_graphs()
+
+        return self.model

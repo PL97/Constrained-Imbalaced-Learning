@@ -17,8 +17,8 @@
 module load parallel
 
 cd /home/jusun/peng0347/Constrained-Imbalaced-Learning
-export PATH=/home/jusun/peng0347/miniconda3/bin:$PATH
-# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/jusun/peng0347/miniconda3/lib/
+export PATH=/home/jusun/peng0347/miniconda3/envs/tf_opt/bin:$PATH
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/jusun/peng0347/miniconda3/envs/tf_opt/
 sh run.sh $1 $2 $3
 
 ## example: sbatch AL.slurm AL_FPOR breast-cancer-wisc-diag 20
