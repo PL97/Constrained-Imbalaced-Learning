@@ -125,18 +125,21 @@ if __name__ == "__main__":
             args.num_constrains = stats['train_num'] + 1
             trainer = FPOR(trainloader, \
                         valloader, \
+                        testloader, \
                         device=device, model=model, args=args)  
         elif args.method == "AL_FROP":
             args.num_constrains = stats['train_num'] + 1
             # args.num_constrains = 3
             trainer = FROP(trainloader, \
                         valloader, \
+                        testloader, \
                         device=device, model=model, args=args)
         elif args.method == "AL_OFBS":
             # args.num_constrains = 2
             args.num_constrains = stats['train_num']
             trainer = OFBS(trainloader, \
                         valloader, \
+                        testloader, \
                         device=device, model=model, args=args)
         
         model = trainer.fit()

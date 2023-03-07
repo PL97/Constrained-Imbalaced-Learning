@@ -15,7 +15,7 @@ from sklearn.metrics import average_precision_score
 
 class FPOR(AL_base):
     @torch.no_grad()
-    def __init__(self, trainloader, valloader, model, device, args):
+    def __init__(self, trainloader, valloader, testloader, model, device, args):
         """Solver for Fix Precision and Optimize Recall (FPOR)
 
         Args:
@@ -27,7 +27,7 @@ class FPOR(AL_base):
         """
         super().__init__()
         self.args = args
-        self.trainloader, self.valloader = trainloader, valloader
+        self.trainloader, self.valloader, self.testloader = trainloader, valloader, testloader
         self.device = device
         self.model = model.to(self.device)
         ## general hyperparameters (fine tune for best performance)
@@ -224,6 +224,7 @@ class FPOR(AL_base):
                 ## log training performance
                 train_metrics = self.test(self.trainloader)
                 val_metrics = self.test(self.valloader)
+                test_metrics = self.test(self.testloader)
                 
                 print(f"========== Round {r}/{self.rounds} ===========")
                 print("Precision: {:3f} \t Recall {:3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
@@ -233,6 +234,9 @@ class FPOR(AL_base):
                 print("(val)Precision: {:3f} \t Recall {:3f} F_beta {:.3f} AP:{:.3f}".format(\
                         val_metrics['precision'], val_metrics['recall'], val_metrics['F_beta'], val_metrics['AP']))
                   
+                print("(test)Precision: {:3f} \t Recall {:3f} F_beta {:.3f} AP:{:.3f}".format(\
+                        test_metrics['precision'], test_metrics['recall'], test_metrics['F_beta'], test_metrics['AP']))
+                  
                 
                 
                 wandb.log({ "trainer/global_step": r, \
@@ -241,12 +245,16 @@ class FPOR(AL_base):
                             "train/EQ": torch.sum(constrains[1:]).item(), \
                             "train/Precision": train_metrics['precision'], \
                             "train/Recall": train_metrics['recall'], \
-                            "train/F_beta": train_metrics['F_beta'],
-                            "train/AP": train_metrics['AP'],
+                            "train/F_beta": train_metrics['F_beta' ], \
+                            "train/AP": train_metrics['AP'], \
                             "val/Precision": val_metrics['precision'], \
-                            "val/Recall": val_metrics['recall'],
-                            "val/F_beta": val_metrics['F_beta'],
-                            "val/AP": val_metrics['AP']
+                            "val/Recall": val_metrics['recall'], \
+                            "val/F_beta": val_metrics['F_beta'], \
+                            "val/AP": val_metrics['AP'], \
+                            "test/Precision": test_metrics['precision'], \
+                            "test/Recall": test_metrics['recall'], \
+                            "test/F_beta": test_metrics['F_beta'], \
+                            "test/AP": test_metrics['AP']
                             })
                 
         

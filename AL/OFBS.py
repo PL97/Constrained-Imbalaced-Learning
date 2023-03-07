@@ -9,12 +9,13 @@ from AL.FPOR import FPOR
 
 
 class OFBS(FPOR):
-    def __init__(self, trainloader, valloader, model, device, args):
-        super().__init__(trainloader, valloader, model, device, args)
+    def __init__(self, trainloader, valloader, testloader, model, device, args):
+        super().__init__(trainloader, valloader, testloader, model, device, args)
         self.beta = 1
         
     
     def objective(self):
+        y = self.active_set['y']
         all_y = self.trainloader.targets.to(self.device)
         all_s = self.adjust_s(self.s)
         eps = 1e-9
@@ -26,7 +27,16 @@ class OFBS(FPOR):
         #     penalty = 0
         # else:
         #     penalty = 10
-        return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) + penalty*torch.norm(fx *(1-fx))/idx.shape[0]
+        # return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) + penalty*torch.norm(fx *(1-fx))/idx.shape[0]
+        
+        n_pos = torch.sum(all_y==1)
+        n_negs = torch.sum(all_y==0)
+        weights = torch.tensor([n_pos/(n_pos+n_negs), n_negs/(n_negs+n_pos)]).to(self.device)
+        weights = weights/(n_pos/(n_pos+n_negs))
+        reweights = torch.ones(X.shape[0], 1).to(self.device)
+        reweights[y==1] = weights[1]
+        return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) + penalty*torch.norm(reweights* fx *(1-fx))/idx.shape[0]
+        
         # 
         # return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) - penalty*fx.T@torch.log2(fx)/idx.shape[0] - penalty*(1-fx).T@torch.log2(1-fx)/idx.shape[0]
         # return (all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2)/all_s.T@(all_y==1).double()
