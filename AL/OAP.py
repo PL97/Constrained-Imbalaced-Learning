@@ -63,10 +63,10 @@ class OAP(AL_base):
         self.s = torch.randn((args.datastats['train_num'], args.datastats['train_num']), requires_grad=True, \
                             dtype=torch.float64, device=self.device)
 
-        num_constrains = args.num_constrains ** 2
+        # num_constrains = args.num_constrains ** 2
         self.datapoints = args.num_constrains
             
-        self.ls = torch.zeros((num_constrains, num_constrains), requires_grad=False, \
+        self.ls = torch.zeros((2, 1), requires_grad=False, \
                             dtype=torch.float64, device=self.device)
         
         self.active_set = None ## this defines a set of activate data(includes indices) that used for optimizing subproblem
@@ -87,7 +87,8 @@ class OAP(AL_base):
     def objective(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
         all_y = self.trainloader.targets.to(self.device)
-        all_s = self.s
+        all_s = self.adjust(self.s)
+        s = self.adujust(self.s[i])
 
         m = nn.Softmax(dim=1)
         fx = m(self.model(X))[:, 1].view(-1, 1)
@@ -100,16 +101,17 @@ class OAP(AL_base):
         reweights[y==1] = weights[1]
         
         ret = 0
-        for i, tmp_y1 in enumerate(all_y):
+        for i in idx:
             nominator, denominator = 0, 0
-            if tmp_y1 == 0:
+            if all_y[i] == 0:
                 continue
-            for j, tmp_y2 in enumerate(all_y):
-                if tmp_y2 == 1:
+            for j in idx:
+                if all_y[j] == 1:
                     nominator += all_s[i, j]
                 denominator += all_s[i, j]
             ret += (nominator/denominator)
-        return (1/n_pos)*ret + 0.1*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
+        obj = (1/n_pos)*ret + 0.1*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
+        return obj.double()
             
         
 
@@ -128,21 +130,22 @@ class OAP(AL_base):
             for j, idx_tmpj in enumerate(idx):
                 if y[i] == 1 and y[j] == 0:
                     c1 = torch.maximum(torch.tensor(0), \
-                    - torch.maximum(s[idx_tmpi, idx_tmpj] + fx[idx_tmpj] - fx[idx_tmpi] - 1, torch.tensor(0)) \
-                        + torch.maximum(-s[idx_tmpi, idx_tmpj], fx[idx_tmpj] - fx[idx_tmpi])
+                    - torch.maximum(s[i, j] + fx[j] - fx[i] - 1, torch.tensor(0)) \
+                        + torch.maximum(-s[i, j], fx[j] - fx[i])
                     )
                     constrains_1.append(c1)
                 elif y[i] ==1 and y[j] == 1:
                     c2 = torch.maximum(torch.tensor(0), \
-                    torch.maximum(s[idx_tmpi, idx_tmpj] + fx[idx_tmpj] - fx[idx_tmpi] - 1, torch.tensor(0)) \
-                        - torch.maximum(-s[idx_tmpi, idx_tmpj], fx[idx_tmpj] - fx[idx_tmpi])
+                    torch.maximum(s[i, j] + fx[j] - fx[i] - 1, torch.tensor(0)) \
+                        - torch.maximum(-s[i, j], fx[j] - fx[i])
                     )
                     constrains_2.append(c2)
-        
+        constrains_1 = torch.stack(constrains_1)
+        constrains_2 = torch.stack(constrains_2)
         delta = 1
         delta_2 = 1
-        ret = torch.cat([torch.log(constrains_1/delta + 1).view(1, 1), torch.log(constrains_2/delta_2 + 1)])
-        return ret
+        ret = torch.cat([torch.sum(torch.log(constrains_1/delta + 1)).view(1, 1), torch.sum(torch.log(constrains_2/delta_2 + 1)).view(1, 1)])
+        return ret.double()
     
                 
         
@@ -153,20 +156,11 @@ class OAP(AL_base):
             augmented lagrangian function
         """
         X, idx, y = self.active_set['X'], self.active_set['idx'], self.active_set['y']
-        # ls = self.ls[idx]
-        ls1 = []
-        ls2 = []
-        for i, tmp_idxi in enumerate(idx):
-            for j, tmp_idxj in enumerate(idx):
-                if y[i] == 1 and y[j] == 1:
-                    ls1.append(self.ls[1, tmp_idxi])
-                elif y[i] == 1 and y[j] == 0:
-                    ls2.append(self.ls[0, tmp_idxi*self.datapoints+tmp_idxj])
-
-        ls = torch.cat(ls1, ls2)
-        print(ls.shape)
-        asdf
+        ls = self.ls
         X = X.to(self.device)
+
+        # print(self.objective().shape, ls.shape, self.constrain().shape)
+        # asdf
         return self.objective() + ls.T@self.constrain() \
                 + (self.rho/2)* torch.sum(self.constrain()**2)
                 
