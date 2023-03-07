@@ -87,8 +87,7 @@ class OAP(AL_base):
     def objective(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
         all_y = self.trainloader.targets.to(self.device)
-        all_s = self.adjust(self.s)
-        s = self.adujust(self.s[i])
+        all_s = self.adjust_s(self.s)
 
         m = nn.Softmax(dim=1)
         fx = m(self.model(X))[:, 1].view(-1, 1)
@@ -101,14 +100,13 @@ class OAP(AL_base):
         reweights[y==1] = weights[1]
         
         ret = 0
+        # print(idx)
         for i in idx:
             nominator, denominator = 0, 0
             if all_y[i] == 0:
                 continue
-            for j in idx:
-                if all_y[j] == 1:
-                    nominator += all_s[i, j]
-                denominator += all_s[i, j]
+            nominator = torch.sum(all_s[i, (all_y==1).flatten()])
+            denominator = torch.sum(all_s[i, :])
             ret += (nominator/denominator)
         obj = (1/n_pos)*ret + 0.1*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
         return obj.double()
@@ -127,19 +125,23 @@ class OAP(AL_base):
         constrains_1 = []
         constrains_2 = []
         for i, idx_tmpi in enumerate(idx):
-            for j, idx_tmpj in enumerate(idx):
-                if y[i] == 1 and y[j] == 0:
-                    c1 = torch.maximum(torch.tensor(0), \
+            if y[i] == 0:
+                continue
+            j = (y==0).flatten()
+            c1 = torch.maximum(torch.tensor(0), \
                     - torch.maximum(s[i, j] + fx[j] - fx[i] - 1, torch.tensor(0)) \
                         + torch.maximum(-s[i, j], fx[j] - fx[i])
                     )
-                    constrains_1.append(c1)
-                elif y[i] ==1 and y[j] == 1:
-                    c2 = torch.maximum(torch.tensor(0), \
-                    torch.maximum(s[i, j] + fx[j] - fx[i] - 1, torch.tensor(0)) \
-                        - torch.maximum(-s[i, j], fx[j] - fx[i])
-                    )
-                    constrains_2.append(c2)
+            constrains_1.extend(c1)
+
+            j = (y==1).flatten()
+            c2 = torch.maximum(torch.tensor(0), \
+            torch.maximum(s[i, j] + fx[j] - fx[i] - 1, torch.tensor(0)) \
+                - torch.maximum(-s[i, j], fx[j] - fx[i])
+            )
+            constrains_2.extend(c2)
+
+
         constrains_1 = torch.stack(constrains_1)
         constrains_2 = torch.stack(constrains_2)
         delta = 1

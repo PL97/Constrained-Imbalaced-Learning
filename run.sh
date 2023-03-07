@@ -1,7 +1,7 @@
 CUDA_VISIBLE_DEVICES=0 python main.py --run_name AL_trail1_s \
                 --dataset breast-cancer-wisc\
                 --model MLP \
-                --batch_size 30 \
+                --batch_size 10000 \
                 --learning_rate 1e-4 \
                 --learning_rate_s 5e-2\
                 --method AL_OAP \
