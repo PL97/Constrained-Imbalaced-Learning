@@ -45,7 +45,7 @@ def get_data(name='adult', batch_size=10, random_seed=1997, with_idx=True):
     Returns:
         dataloaders and data stats (as a dict)
     """
-    df = pd.read_csv(f"binary_data/{name}.csv")
+    df = pd.read_csv(f"/home/jusun/shared/Cleaned_UCI_Datasets/binary_data/{name}.csv")
     
     X, y = df.iloc[:, :-1].to_numpy(), df.iloc[:, -1].to_numpy()
     ## cast data to float type

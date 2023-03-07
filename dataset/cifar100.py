@@ -7,8 +7,80 @@ from sklearn.model_selection import train_test_split
 import torchvision
 import pickle
 import os
-from dataset.Fastloader import FastTensorDataLoader  
+from dataset.Fastloader import FastTensorDataLoader 
+from torchvision import transforms 
+from multiprocessing import Pool, cpu_count
 
+def apply_treansform_train(x):
+    mean = (0.485, 0.456, 0.406)
+    std = (0.229, 0.224, 0.225)
+    transform = {"train": transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean, std),
+    ]),
+    "val": transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean, std),
+    ])}
+    return transform['train'](x)
+
+def apply_treansform_val(x):
+    mean = (0.485, 0.456, 0.406)
+    std = (0.229, 0.224, 0.225)
+    transform = {"train": transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean, std),
+    ]),
+    "val": transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean, std),
+    ])}
+    return transform['val'](x)
+
+class imageFastTensorDataLoader(FastTensorDataLoader):
+    def __init__(self, *tensors, batch_size=32, shuffle=False, mode='val'):
+        super().__init__(*tensors, batch_size=batch_size, shuffle=shuffle)
+        self.mode = mode
+        mean = (0.485, 0.456, 0.406)
+        std = (0.229, 0.224, 0.225)
+        self.transform = {"train": transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ]),
+        "val": transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ])}
+    def __next__(self):
+        if self.i >= self.dataset_len:
+            raise StopIteration
+        batch = list(t[self.i:self.i+self.batch_size] for t in self.tensors)
+        pool = Pool(cpu_count() - 1)  
+        if self.mode == "train":
+            test1 = pool.map(apply_treansform_train, batch[-2])
+        else:
+            test1 = pool.map(apply_treansform_val, batch[-2])
+        batch[0] = torch.stack(test1)
+        self.i += self.batch_size
+        return batch
+    def __iter__(self):
+        if self.shuffle:
+            r = torch.randperm(self.dataset_len)
+            self.tensors = [t[r] for t in self.tensors]
+        self.i = 0
+        return self
 
 
 def load_cifar100_train():
@@ -29,12 +101,6 @@ def load_cifar100_train():
         DATA = pickle.load(obj, encoding='bytes')
     imgList = DATA[b'data'].reshape((DATA[b'data'].shape[0],3, 32,32)).astype(np.float32)
     
-    for i in range(len(imgList)):
-        imgList[i] = imgList[i]/255.0
-        imgList[i][0] = (imgList[i][0]-0.485)/0.229
-        imgList[i][1] = (imgList[i][1]-0.456)/0.224
-        imgList[i][2] = (imgList[i][2]-0.406)/0.225
-    
     imgList = imgList.astype(np.float32)
     
     labelList = DATA[b'fine_labels']
@@ -49,12 +115,6 @@ def load_cifar100_test():
     imgList = DATA[b'data'].reshape((DATA[b'data'].shape[0],3, 32,32)).astype(np.float32)
     labelList = DATA[b'fine_labels']
     coause_labelList = DATA[b'coarse_labels']
-    
-    for i in range(len(imgList)):
-        imgList[i] = imgList[i]/255.0
-        imgList[i][0] = (imgList[i][0]-0.485)/0.229
-        imgList[i][1] = (imgList[i][1]-0.456)/0.224
-        imgList[i][2] = (imgList[i][2]-0.406)/0.225
 
     imgList = imgList.astype(np.float32)
     return imgList, labelList, coause_labelList
@@ -82,6 +142,7 @@ def get_data(batch_size=10, random_seed=1997, binary_pos=0, with_idx=True):
     
     imgList_test, labelList_test, coause_labelList = load_cifar100_test()
     labelList_test = np.asarray([0 if l != binary_pos else 1 for l in labelList_test])
+
     ## only consider classify class 1 from class 0
     # imgList_test, labelList_test = np.asarray(imgList_test), np.asarray(labelList_test)
     # binary_idx = np.where(np.asarray(labelList_test)<=1)[0]
@@ -108,13 +169,13 @@ def get_data(batch_size=10, random_seed=1997, binary_pos=0, with_idx=True):
     
     
     if with_idx:
-        trainloader = FastTensorDataLoader(np.asarray(range(len(imgList_train))), X_train, y_train, batch_size=batch_size, shuffle=True)
-        valloader = FastTensorDataLoader(np.asarray(range(len(imgList_val))), X_val, y_val, batch_size=batch_size, shuffle=True)
-        testloader = FastTensorDataLoader(np.asarray(range(len(imgList_test))), X_test, y_test, batch_size=batch_size, shuffle=True)
+        trainloader = imageFastTensorDataLoader(np.asarray(range(len(imgList_train))), X_train, y_train, batch_size=batch_size, shuffle=True, mode='train')
+        valloader = imageFastTensorDataLoader(np.asarray(range(len(imgList_val))), X_val, y_val, batch_size=batch_size, shuffle=True)
+        testloader = imageFastTensorDataLoader(np.asarray(range(len(imgList_test))), X_test, y_test, batch_size=batch_size, shuffle=True)
     else:
-        trainloader = FastTensorDataLoader(X_train, y_train, batch_size=batch_size, shuffle=True)
-        valloader = FastTensorDataLoader(X_val, y_val, batch_size=batch_size, shuffle=True)
-        testloader = FastTensorDataLoader(X_test, y_test, batch_size=batch_size, shuffle=True)
+        trainloader = imageFastTensorDataLoader(X_train, y_train, batch_size=batch_size, shuffle=True, mode='train')
+        valloader = imageFastTensorDataLoader(X_val, y_val, batch_size=batch_size, shuffle=True)
+        testloader = imageFastTensorDataLoader(X_test, y_test, batch_size=batch_size, shuffle=True)
     
     
     return trainloader, valloader, testloader, stats

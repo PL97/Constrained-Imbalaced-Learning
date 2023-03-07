@@ -7,6 +7,7 @@ sys.path.append("./")
 from AL.FPOR import FPOR
 from AL.FROP import FROP
 from AL.OFBS import OFBS
+from AL.OAP import OAP
 from dataset.UCI import get_data as get_uci_data
 from dataset.cifar100 import get_data as get_cifar100_data
 from models.MLP import MLP
@@ -141,6 +142,15 @@ if __name__ == "__main__":
                         valloader, \
                         testloader, \
                         device=device, model=model, args=args)
+        elif args.method == "AL_OAP":
+            # args.num_constrains = 2
+            args.num_constrains = stats['train_num']
+            trainer = OAP(trainloader, \
+                        valloader, \
+                        testloader, \
+                        device=device, model=model, args=args)
+        else:
+            exit("method not found, source: main.py")
         
         model = trainer.fit()
         # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:

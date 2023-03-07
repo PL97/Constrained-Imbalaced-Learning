@@ -137,8 +137,13 @@ class FPOR(AL_base):
         # zero_constrain = torch.mean(torch.abs(self.s[idx]*(1-self.s[idx])))
         # return torch.cat([ineq.view(1, 1), (torch.mean(torch.abs(eqs))+zero_constrain).view(1, 1)], dim=0)
         
+        n_pos = torch.sum(all_y==1)
+        n_negs = torch.sum(all_y==0)
+        weights = torch.tensor([n_pos/(n_pos+n_negs), n_negs/(n_negs+n_pos)]).to(self.device)
+        weights = weights/(n_pos/(n_pos+n_negs))
+        
         pos_idx = (y==1).flatten()
-        eqs_p = torch.maximum(torch.tensor(0), \
+        eqs_p = weights[1] * torch.maximum(torch.tensor(0), \
             torch.maximum(s[pos_idx]+fx[pos_idx]-1-self.t, torch.tensor(0)) - torch.maximum(-s[pos_idx], fx[pos_idx]-self.t)
         )
         neg_idx = (y==0).flatten()
