@@ -9,41 +9,7 @@ import pickle
 import os
 from dataset.Fastloader import FastTensorDataLoader 
 from torchvision import transforms 
-from multiprocessing import Pool, cpu_count
 
-def apply_treansform_train(x):
-    mean = (0.485, 0.456, 0.406)
-    std = (0.229, 0.224, 0.225)
-    transform = {"train": transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std),
-    ]),
-    "val": transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std),
-    ])}
-    return transform['train'](x)
-
-def apply_treansform_val(x):
-    mean = (0.485, 0.456, 0.406)
-    std = (0.229, 0.224, 0.225)
-    transform = {"train": transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std),
-    ]),
-    "val": transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std),
-    ])}
-    return transform['val'](x)
 
 class imageFastTensorDataLoader(FastTensorDataLoader):
     def __init__(self, *tensors, batch_size=32, shuffle=False, mode='val'):
@@ -67,12 +33,7 @@ class imageFastTensorDataLoader(FastTensorDataLoader):
         if self.i >= self.dataset_len:
             raise StopIteration
         batch = list(t[self.i:self.i+self.batch_size] for t in self.tensors)
-        pool = Pool(cpu_count() - 1)  
-        if self.mode == "train":
-            test1 = pool.map(apply_treansform_train, batch[-2])
-        else:
-            test1 = pool.map(apply_treansform_val, batch[-2])
-        batch[0] = torch.stack(test1)
+        batch[-2] = torch.stack(tuple(map(self.transform[self.mode],  batch[-2])))
         self.i += self.batch_size
         return batch
     def __iter__(self):
