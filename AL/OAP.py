@@ -118,7 +118,9 @@ class OAP(AL_base):
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
     def constrain(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
-        s = self.adjust_s(self.s[idx, idx])
+        s = self.s[idx, :]
+        s = s[:, idx]
+        s = self.adjust_s(s=s)
         m = nn.Softmax(dim=1)
         fx = m(self.model(X))[:, 1].view(-1, 1)
         
@@ -128,7 +130,6 @@ class OAP(AL_base):
             if y[i] == 0:
                 continue
             j = (y==0).flatten()
-            print(s[i, :].shape, self.s[idx].shape, fx.shape, j.shape)
             c1 = torch.maximum(torch.tensor(0), \
                     - torch.maximum(s[i, j] + fx[j] - fx[i] - 1, torch.tensor(0)) \
                         + torch.maximum(-s[i, j], fx[j] - fx[i])
