@@ -10,6 +10,7 @@ from utils.loss import WCE
 from AL.sampler import BatchSampler
 from models.utils import EarlyStopper
 from sklearn.metrics import average_precision_score
+from copy import deepcopy
 
 
 
@@ -49,8 +50,8 @@ class FPOR(AL_base):
         
         
         ## track hyparam
-        self.wandb_run = wandb.init(project=self.args.method, \
-                   name=self.args.run_name, \
+        self.wandb_run = wandb.init(project=self.args.run_name, \
+                   name=self.args.method, \
                    dir = self.args.workspace, \
                    config={
                     'dataset': self.args.dataset, \
@@ -151,14 +152,9 @@ class FPOR(AL_base):
             -torch.maximum(s[neg_idx]+fx[neg_idx]-1-self.t, torch.tensor(0)) + torch.maximum(-s[neg_idx], fx[neg_idx]-self.t)
         )
         
-        delta = 1
-        delta_2 = 1
+        delta = 0.1
+        delta_2 = 0.1
         return torch.cat([torch.log(ineq/delta + 1).view(1, 1), torch.log(eqs_n/delta_2 + 1), torch.log(eqs_p/delta_2 + 1)])
-        # return torch.cat([ineq.view(1, 1), eqs_n, eqs_p])
-        # return torch.cat([ineq.view(1, 1), (torch.mean(torch.abs(eqs_n))).view(1, 1), (torch.mean(torch.abs(eqs_p))).view(1, 1)], dim=0)
-        # delta = 1
-        # return torch.cat([ineq.view(1, 1), torch.log(torch.mean(torch.abs(eqs_n)).view(1, 1)/delta + 1), torch.log(torch.mean(torch.abs(eqs_p)).view(1, 1)/delta + 1)], dim=0)
-    
     
     
     def warmstart(self):
@@ -201,6 +197,7 @@ class FPOR(AL_base):
             self.s[idx] += (m(self.model(X))[:, 1].view(-1, 1) >= self.t).int()/self.lr_adaptor
 
     def fit(self):
+        best_AP = 0
         if self.warm_start > 0:
             self.warmstart()
         
@@ -242,6 +239,9 @@ class FPOR(AL_base):
                 print("(test)Precision: {:3f} \t Recall {:3f} F_beta {:.3f} AP:{:.3f}".format(\
                         test_metrics['precision'], test_metrics['recall'], test_metrics['F_beta'], test_metrics['AP']))
                   
+                if val_metrics['AP'] > best_AP:
+                    final_model = deepcopy(self.model)
+                    best_AP = val_metrics['AP']
                 
                 
                 wandb.log({ "trainer/global_step": r, \
@@ -279,4 +279,4 @@ class FPOR(AL_base):
         
         # self.draw_graphs()
 
-        return self.model
+        return final_model

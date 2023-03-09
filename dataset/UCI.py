@@ -45,8 +45,7 @@ def get_data(name='adult', batch_size=10, random_seed=1997, with_idx=True):
     Returns:
         dataloaders and data stats (as a dict)
     """
-    df = pd.read_csv(f"/home/jusun/shared/Cleaned_UCI_Datasets/binary_data/{name}.csv")
-    
+    df = pd.read_csv(f"/home/jusun/shared/Cleaned_UCI_Datasets/binary_data/{name}.csv", header=None)
     X, y = df.iloc[:, :-1].to_numpy(), df.iloc[:, -1].to_numpy()
     ## cast data to float type
     X = X.astype(np.float32)
@@ -62,6 +61,19 @@ def get_data(name='adult', batch_size=10, random_seed=1997, with_idx=True):
                                                     stratify=y_tmp, \
                                                     random_state=random_seed)
 
+    # train_data = np.concatenate((X_train, y_train), axis=1)
+    # test_data = np.concatenate((X_test, y_test), axis=1)
+    # val_data = np.concatenate((X_val, y_val), axis=1)
+    
+    # train_df = pd.DataFrame(train_data)
+    # test_df = pd.DataFrame(test_data)
+    # val_df = pd.DataFrame(val_data)
+    # train_df.to_csv("train.csv")
+    # test_df.to_csv("test.csv")
+    # val_df.to_csv("val.csv")
+    # print(train_data.shape, test_data.shape, val_data.shape)
+    # asdf
+
     stats = {
         'feature_dim': X.shape[1], \
         'label_num': len(np.unique(y)), \
@@ -71,27 +83,6 @@ def get_data(name='adult', batch_size=10, random_seed=1997, with_idx=True):
         'val_num': X_val.shape[0], \
         'label_distribution': Counter(df.iloc[:, -1])
     }
-    # trainloader = DataLoader(UCI_dataset(X=X_train, y=y_train), \
-    #                         batch_size=batch_size, \
-    #                         shuffle=True, \
-    #                         pin_memory=True, \
-    #                         num_workers=4)
-    
-    # valloader = DataLoader(UCI_dataset(X=X_val, y=y_val), \
-    #                         batch_size=batch_size, \
-    #                         shuffle=False, \
-    #                         pin_memory=True, \
-    #                         num_workers=4) 
-    
-    # testloader = DataLoader(UCI_dataset(X=X_test, y=y_test), \
-    #                         batch_size=batch_size, \
-    #                         shuffle=False, \
-    #                         pin_memory=True, \
-    #                         num_workers=4) 
-    
-    # trainloader = FastTensorDataLoader(X_train, y_train, batch_size=batch_size, shuffle=True)
-    # valloader = FastTensorDataLoader(X_val, y_val, batch_size=batch_size, shuffle=True)
-    # testloader = FastTensorDataLoader(X_test, y_test, batch_size=batch_size, shuffle=True)
     
 
     X_train, y_train = torch.from_numpy(X_train), torch.from_numpy(y_train)

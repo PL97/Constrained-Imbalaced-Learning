@@ -36,8 +36,8 @@ class OAP(AL_base):
         
         
         ## track hyparam
-        self.wandb_run = wandb.init(project=self.args.method, \
-                   name=self.args.run_name, \
+        self.wandb_run = wandb.init(project=self.args.run_name, \
+                   name=self.args.method, \
                    dir = self.args.workspace, \
                    config={
                     'dataset': self.args.dataset, \
@@ -108,7 +108,7 @@ class OAP(AL_base):
             nominator = torch.sum(all_s[i, (all_y==1).flatten()])
             denominator = torch.sum(all_s[i, :])
             ret += (nominator/denominator)
-        obj = (1/n_pos)*ret + 0.1*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
+        obj = (1/n_pos)*ret
         return obj.double()
             
         
@@ -217,17 +217,6 @@ class OAP(AL_base):
                 print("Precision: {:.3f} \t Recall {:.3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
                         train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
 
-    
-    @torch.no_grad()
-    def initialize_with_feasiblity(self):
-        """Another trick that boost the performance, initialize variable s with feasiblity guarantee
-        """
-        m = nn.Softmax(dim=1)
-        self.s -= self.s
-        for idx, X, y in self.trainloader:
-            X = X.to(self.device)
-            X = X.float()
-            self.s[idx] += (m(self.model(X))[:, 1].view(-1, 1) >= self.t).int()/self.lr_adaptor
 
     def fit(self):
         if self.warm_start > 0:

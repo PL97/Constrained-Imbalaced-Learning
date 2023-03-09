@@ -77,8 +77,8 @@ def pytorchlightning_wandb_setup(args):
     Returns:
         wandb_logger: will be used for Pytorch lightning trainer
     """
-    wandb_logger = WandbLogger(project="AL_FPOR", \
-                                name=args.run_name, \
+    wandb_logger = WandbLogger(project="constrained_IL", \
+                                name=args.method, \
                                 save_dir=args.workspace)
     wandb_logger.experiment.config.update({
         'dataset': args.dataset, \
@@ -158,9 +158,9 @@ if __name__ == "__main__":
         # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
         
         
-        train_metrics = trainer.test(trainloader)
-        val_metrics = trainer.test(valloader)
-        test_metrics = trainer.test(testloader)
+        train_metrics = trainer.test(trainloader, model=model)
+        val_metrics = trainer.test(valloader, model=model)
+        test_metrics = trainer.test(testloader, model=model)
         
         
         ## final evaluation on train, val, and test set

@@ -22,7 +22,7 @@ class OFBS(FPOR):
         X, idx = self.active_set['X'].to(self.device), self.active_set['idx']
         m = nn.Softmax(dim=1)
         fx = m(self.model(X))[:, 1].view(-1, 1)
-        penalty = 0.5
+        
         # if self.r < 10:
         #     penalty = 0
         # else:
@@ -35,7 +35,8 @@ class OFBS(FPOR):
         weights = weights/(n_pos/(n_pos+n_negs))
         reweights = torch.ones(X.shape[0], 1).to(self.device)
         reweights[y==1] = weights[1]
-        return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) + penalty*torch.norm(reweights* fx *(1-fx))/idx.shape[0]
+        
+        return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) + 0.1*torch.norm(reweights* fx *(1-fx))/idx.shape[0]
         
         # 
         # return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) - penalty*fx.T@torch.log2(fx)/idx.shape[0] - penalty*(1-fx).T@torch.log2(1-fx)/idx.shape[0]

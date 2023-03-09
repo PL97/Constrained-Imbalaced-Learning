@@ -22,6 +22,9 @@ class trainer_base(pl.LightningModule):
         optimizer = AdamW([
                 {'params': self.model.parameters(), 'lr': self.args.learning_rate}
                 ])
+        # optimizer = SGD([
+        #         {'params': self.model.parameters(), 'lr': self.args.learning_rate},
+        #         ], weight_decay=5e-3)
         return optimizer
     
     def training_step(self, batch, batch_idx):

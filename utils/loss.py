@@ -153,7 +153,7 @@ class APLoss(nn.Module):
         return self.helper_func.apply(input, target)
     
 class WCE(nn.Module):
-    def __init__(self, npos, nneg, device=None):
+    def __init__(self, nneg, npos, device=None):
         super(WCE, self).__init__()
         weights = 1.0/torch.Tensor([nneg, npos])
         weights = weights / torch.amin(weights)

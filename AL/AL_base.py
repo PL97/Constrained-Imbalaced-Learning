@@ -128,7 +128,7 @@ class AL_base:
                 self.update_langrangian_multiplier()
 
     @torch.no_grad()
-    def test(self, dataloader):
+    def test(self, dataloader, model=None):
         """_summary_
 
         Args:
@@ -138,7 +138,11 @@ class AL_base:
             precision: precision of the classificaiton model, defined as TP/(TP+FP)
             recall: recall of the classificaiton model, defined as TP/(TP+FN)
         """
-        self.model.eval()
+        # self.model.eval()
+        if model is None:
+            model = self.model
+        model.eval()
+            
         m = nn.Softmax(dim=1)
         prediction = []
         labels = []
@@ -147,7 +151,7 @@ class AL_base:
         for idx, X, y in dataloader:
             X = X.float()
             X, y = X.to(self.device), y.to(self.device)
-            tmp_score = m(self.model(X))[:, 1].detach().cpu().numpy()
+            tmp_score = m(model(X))[:, 1].detach().cpu().numpy()
             pred_score.extend(tmp_score)
             prediction.extend((tmp_score >= self.t).astype(int))
             labels.extend(y)
