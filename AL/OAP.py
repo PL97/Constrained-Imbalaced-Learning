@@ -109,7 +109,10 @@ class OAP(AL_base):
             denominator = torch.sum(all_s[i, :])
             ret += (nominator/denominator)
         obj = (1/n_pos)*ret
-        return -obj + 0.1*torch.norm(reweights * self.fx *(1-self.fx))/idx.shape[0]
+        
+        reg = reweights*(self.fx - torch.mean(self.fx)) ** 2
+        
+        return -obj - 1*torch.norm(reg)/idx.shape[0]
 
 
 
@@ -252,6 +255,6 @@ class OAP(AL_base):
         final_model_name = f"{self.workspace}/final.pt"
         torch.save(self.model, final_model_name)
         
-        # self.draw_graphs()
+        self.draw_graphs(pred_only=True)
 
         return self.model
