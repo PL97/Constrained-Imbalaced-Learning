@@ -179,7 +179,7 @@ class AL_base:
         return metric
                 
     @torch.no_grad()
-    def draw_graphs(self):
+    def draw_graphs(self, pred_only=False):
         ## visualize the prediciton distribution  and algiment with s
         
         train_metric = self.test(self.trainloader)
@@ -187,6 +187,15 @@ class AL_base:
         labels = train_metric['labels'].reshape(-1, 1).flatten().tolist()
         print(train_metric['precision'], train_metric['recall'], train_metric['F_beta'], train_metric['AP'])
         reordered_s = self.adjust_s(self.s).detach().cpu()[train_metric['indices']].reshape(-1, 1).flatten().tolist()
+        
+        if pred_only:
+            tmp_df = pd.DataFrame({"prediciton": pred_score, "target": labels})
+            ax = sns.displot(data=tmp_df, x="prediciton", hue="target")
+            ax.fig.set_figwidth(10)
+            ax.fig.set_figheight(5)
+            plt.savefig("distribution.png")
+            plt.close()
+            return
         
         tmp_df = pd.DataFrame({"prediciton": pred_score, "target": labels, "s": reordered_s})
         print(tmp_df.head())
