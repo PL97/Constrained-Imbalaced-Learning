@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#SBATCH --time=1:00:00
+#SBATCH --time=23:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
 #SBATCH --mem=40g
@@ -10,9 +10,9 @@
 ##SBATCH -p v100                                   
 ##SBATCH --gres=gpu:v100:1
 
-# SBATCH --gres=gpu:a100:1
-## SBATCH -p a100-8
-#SBATCH -p apollo_agate
+#SBATCH --gres=gpu:a100:1
+#SBATCH -p a100-8
+##SBATCH -p apollo_agate
 
 module load parallel
 

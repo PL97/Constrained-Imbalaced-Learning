@@ -22,9 +22,6 @@ class trainer_base(pl.LightningModule):
         optimizer = AdamW([
                 {'params': self.model.parameters(), 'lr': self.args.learning_rate}
                 ])
-        # optimizer = SGD([
-        #         {'params': self.model.parameters(), 'lr': self.args.learning_rate},
-        #         ], weight_decay=5e-3)
         return optimizer
     
     def training_step(self, batch, batch_idx):
@@ -73,8 +70,6 @@ class trainer_base(pl.LightningModule):
         return {"precision": precision, "recall": recall, "F_beta": f_beta, "AP": AP}
         
     
-
-        
     @torch.no_grad()
     def _shared_epoch_end(self, outputs, prefix):
         preds, target = [], []
@@ -88,6 +83,7 @@ class trainer_base(pl.LightningModule):
         for k, v in metrics.items():
             self.log(f'{prefix}/{k}', v, sync_dist=True)
         
+    
     @torch.no_grad()
     def training_epoch_end(self, outputs):
         return self._shared_epoch_end(outputs, prefix="train")

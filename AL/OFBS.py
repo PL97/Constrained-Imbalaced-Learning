@@ -23,12 +23,6 @@ class OFBS(FPOR):
         m = nn.Softmax(dim=1)
         fx = m(self.model(X))[:, 1].view(-1, 1)
         
-        # if self.r < 10:
-        #     penalty = 0
-        # else:
-        #     penalty = 10
-        # return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) + penalty*torch.norm(fx *(1-fx))/idx.shape[0]
-        
         n_pos = torch.sum(all_y==1)
         n_negs = torch.sum(all_y==0)
         weights = torch.tensor([n_pos/(n_pos+n_negs), n_negs/(n_negs+n_pos)]).to(self.device)
@@ -37,10 +31,6 @@ class OFBS(FPOR):
         reweights[y==1] = weights[1]
         
         return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) + 0.1*torch.norm(reweights* fx *(1-fx))/idx.shape[0]
-        
-        # 
-        # return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) - penalty*fx.T@torch.log2(fx)/idx.shape[0] - penalty*(1-fx).T@torch.log2(1-fx)/idx.shape[0]
-        # return (all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2)/all_s.T@(all_y==1).double()
 
 
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0

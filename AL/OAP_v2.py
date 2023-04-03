@@ -8,7 +8,6 @@ import wandb
 from AL.AL_base import AL_base
 from AL.FPOR import FPOR
 from models.utils import EarlyStopper
-from utils.utils import log
 
 
 class OAP(AL_base):
@@ -62,19 +61,24 @@ class OAP(AL_base):
         ########################### DO NOT TOUCH STARTS FROM HERE ####################
         ## optimization variables: ls are Lagrangian multipliers
         self.s = torch.randn((args.datastats['train_num'], args.datastats['train_num']), requires_grad=True, \
-                            dtype=torch.float32, device=self.device)
+                            dtype=torch.float64, device=self.device)
+        self.u = torch.randn((args.datastats['train_num']), requires_grad=True, \
+                            dtype=torch.float64, device=self.device)
 
         # num_constrains = args.num_constrains ** 2
         self.datapoints = args.num_constrains
             
         self.ls = torch.zeros((2, 1), requires_grad=False, \
-                            dtype=torch.float32, device=self.device)
+                            dtype=torch.float64, device=self.device)
         
         self.active_set = None ## this defines a set of activate data(includes indices) that used for optimizing subproblem
-        self.optim = AdamW([
-                    {'params': self.model.parameters(), 'lr': self.lr},
-                    {'params': self.s, 'lr': self.lr_s}  ##best to set as 0.5
-                    ])
+        if args.solver.lower() == "AdamW".lower():
+            self.optim = AdamW([
+                        {'params': self.model.parameters(), 'lr': self.lr},
+                        {'params': self.s, 'lr': self.lr_s}  ##best to set as 0.5
+                        ])
+        else:
+            self.optim = LBFGS(list(self.model.parameters()) + list(self.s), history_size=10, max_iter=4, line_search_fn="strong_wolfe")
         
         self.optimizer = args.solver
         
@@ -83,7 +87,6 @@ class OAP(AL_base):
         self.pre_constrain = np.inf
         
         self.scaler = torch.cuda.amp.GradScaler()
-        self.rebalance_weights = torch.tensor([1., 1., 1.], requires_grad=False, device=self.device)
     
     def objective(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
@@ -91,6 +94,7 @@ class OAP(AL_base):
         all_s = self.adjust_s(self.s)
 
         m = nn.Softmax(dim=1)
+        fx = m(self.model(X))[:, 1].view(-1, 1)
         
         n_pos = torch.sum(all_y==1)
         n_negs = torch.sum(all_y==0)
@@ -109,9 +113,11 @@ class OAP(AL_base):
             denominator = torch.sum(all_s[i, :])
             ret += (nominator/denominator)
         obj = (1/n_pos)*ret
-        return -obj + 0.1*torch.norm(reweights * self.fx *(1-self.fx))/idx.shape[0]
+        return obj.double()
+            
+        
 
-
+        
 
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
     def constrain(self):
@@ -120,6 +126,7 @@ class OAP(AL_base):
         s = s[:, idx]
         s = self.adjust_s(s=s)
         m = nn.Softmax(dim=1)
+        fx = m(self.model(X))[:, 1].view(-1, 1)
         
         constrains_1 = []
         constrains_2 = []
@@ -128,25 +135,25 @@ class OAP(AL_base):
                 continue
             j = (y==0).flatten()
             c1 = torch.maximum(torch.tensor(0), \
-                    - torch.maximum(s[i, j] + self.fx[j] - self.fx[i] - 1, torch.tensor(0)) \
-                        + torch.maximum(-s[i, j], self.fx[j] - self.fx[i])
+                    - torch.maximum(s[i, j] + fx[j] - fx[i] - 1, torch.tensor(0)) \
+                        + torch.maximum(-s[i, j], fx[j] - fx[i])
                     )
             constrains_1.extend(c1)
 
             j = (y==1).flatten()
             c2 = torch.maximum(torch.tensor(0), \
-            torch.maximum(s[i, j] + self.fx[j] - self.fx[i] - 1, torch.tensor(0)) \
-                - torch.maximum(-s[i, j], self.fx[j] - self.fx[i])
+            torch.maximum(s[i, j] + fx[j] - fx[i] - 1, torch.tensor(0)) \
+                - torch.maximum(-s[i, j], fx[j] - fx[i])
             )
             constrains_2.extend(c2)
 
 
         constrains_1 = torch.stack(constrains_1)
         constrains_2 = torch.stack(constrains_2)
-        delta = 0.01
-        delta_2 = 0.01
+        delta = 0.1
+        delta_2 = 0.1
         ret = torch.cat([torch.mean(torch.log(constrains_1/delta + 1)).view(1, 1), torch.mean(torch.log(constrains_2/delta_2 + 1)).view(1, 1)])
-        return ret
+        return ret.double()
     
                 
         
@@ -156,15 +163,14 @@ class OAP(AL_base):
         Returns:
             augmented lagrangian function
         """
-        m = nn.Sigmoid()
         X, idx, y = self.active_set['X'], self.active_set['idx'], self.active_set['y']
         ls = self.ls
-        with torch.cuda.amp.autocast():
-            self.fx = m(self.model(X))[:, 1].view(-1, 1)
+        X = X.to(self.device)
 
-        const = self.constrain()
-        return self.objective() + ls.T@const \
-                    + (self.rho/2)* torch.sum(const**2)
+        # print(self.objective().shape, ls.shape, self.constrain().shape)
+        # asdf
+        return self.objective() + ls.T@self.constrain() \
+                + (self.rho/2)* torch.sum(self.constrain()**2)
                 
     def update_langrangian_multiplier(self):
         """update the lagrangian multipler
@@ -175,12 +181,17 @@ class OAP(AL_base):
             count_updates += 1
             X, y = X.to(self.device), y.to(self.device)
             self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
+            # constrain_output = self.constrain()
+            # self.ls[idx] += self.rho*constrain_output
+            # tmp_constrains += torch.norm(constrain_output).item()
 
         self.ls += self.rho * self.constrain()
         self.rho *= self.delta
         if tmp_constrains > self.pre_constrain:
             self.rho *= self.delta
             self.pre_constrain = tmp_constrains
+
+
 
 
     def warmstart(self):
@@ -198,13 +209,9 @@ class OAP(AL_base):
                 X = X.float()
                 X, y = X.to(self.device), y.to(self.device)
                 optim.zero_grad()
-                with torch.cuda.amp.autocast():
-                    loss = criterion(self.model(X), y.flatten().long())
-                
-                self.scaler.scale(loss).backward()
-                self.scaler.step(self.optim)
-                self.scaler.update()
-                
+                loss = criterion(self.model(X), y.flatten().long())
+                loss.backward()
+                optim.step()
                 
             with torch.no_grad():
                 self.model.eval()
@@ -234,6 +241,9 @@ class OAP(AL_base):
                     break
         
             self.earlystopper.reset()
+            # wandb.watch(self.model)        
+            ## update lagrangian multiplier and evaluation
+            # self.initialize_with_feasiblity()
             with torch.no_grad():
                 self.model.eval()
                 self.update_langrangian_multiplier()
@@ -243,14 +253,51 @@ class OAP(AL_base):
                 val_metrics = self.test(self.valloader)
                 test_metrics = self.test(self.testloader)
                 
-                constraints = self.constrain()
-                obj = self.objective().item()
+                print(f"========== Round {r}/{self.rounds} ===========")
+                print("Precision: {:3f} \t Recall {:3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
+                        train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
+                constrains = self.constrain()
+                print("Obj: {}\tIEQ: {}\tEQ: {}".format(self.objective().item(), constrains[0].item(), torch.sum(constrains[1:]).item()))
+                print("(val)Precision: {:3f} \t Recall {:3f} F_beta {:.3f} AP:{:.3f}".format(\
+                        val_metrics['precision'], val_metrics['recall'], val_metrics['F_beta'], val_metrics['AP']))
+                  
+                print("(test)Precision: {:3f} \t Recall {:3f} F_beta {:.3f} AP:{:.3f}".format(\
+                        test_metrics['precision'], test_metrics['recall'], test_metrics['F_beta'], test_metrics['AP']))
+                  
                 
-                log(constraints, obj, train_metrics, val_metrics, test_metrics, verbose=True, r=r, rounds=self.rounds)
+                
+                wandb.log({ "trainer/global_step": r, \
+                            "train/Obj": self.objective().item(), \
+                            "train/IEQ": constrains[0].item(), \
+                            "train/EQ": torch.sum(constrains[1:]).item(), \
+                            "train/Precision": train_metrics['precision'], \
+                            "train/Recall": train_metrics['recall'], \
+                            "train/F_beta": train_metrics['F_beta' ], \
+                            "train/AP": train_metrics['AP'], \
+                            "val/Precision": val_metrics['precision'], \
+                            "val/Recall": val_metrics['recall'], \
+                            "val/F_beta": val_metrics['F_beta'], \
+                            "val/AP": val_metrics['AP'], \
+                            "test/Precision": test_metrics['precision'], \
+                            "test/Recall": test_metrics['recall'], \
+                            "test/F_beta": test_metrics['F_beta'], \
+                            "test/AP": test_metrics['AP']
+                            })
                 
         
         final_model_name = f"{self.workspace}/final.pt"
         torch.save(self.model, final_model_name)
+        # art_model = wandb.Artifact(f"{self.args.dataset}-{self.args.model}-{self.wandb_run.id}", type='model')
+        # art_model.add_file(final_model_name)
+        # wandb.log_artifact(art_model, aliases=["final"])
+        
+        try:
+            wandb.run.summary["train_precision"] = train_metrics['precision']
+            wandb.run.summary["train_recall"] = train_metrics['recall']
+            wandb.run.summary["val_precision"] = val_metrics['precision']
+            wandb.run.summary["val_recall"] = val_metrics['recall']
+        except:
+            print("skip AL...")
         
         # self.draw_graphs()
 

@@ -1,4 +1,5 @@
 import torch
+
 import numpy as np
 import random
 import sys
@@ -101,13 +102,13 @@ if __name__ == "__main__":
         trainloader, valloader, testloader, stats = get_cifar100_data(
                                                         batch_size=args.batch_size, \
                                                         random_seed=args.random_seed, \
-                                                        with_idx=("AL" in args.method))
+                                                        with_idx=("AL" in args.method), shuffle=False)
         model = AlexNet(num_classes=2, grayscale=False, input_shape=(1, 3, 32, 32))
     else:
         trainloader, valloader, testloader, stats = get_uci_data(name=args.dataset, \
                                                         batch_size=args.batch_size, \
                                                         random_seed=args.random_seed, \
-                                                        with_idx=("AL" in args.method))
+                                                        with_idx=("AL" in args.method), shuffle=False)
         model = MLP(input_dim=stats['feature_dim'], hidden_dim=100, num_layers=10, output_dim=stats['label_num'])
     
     args.datastats = stats
@@ -152,9 +153,9 @@ if __name__ == "__main__":
         else:
             exit("method not found, source: main.py")
         
-        model = trainer.fit()
+        # model = trainer.fit()
         # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
-        #     model = trainer.fit()
+        model = trainer.fit()
         # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
         
         

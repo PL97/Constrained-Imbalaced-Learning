@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 from sklearn.metrics import average_precision_score
+from torch.optim import SGD, AdamW, Adam, LBFGS
 import numpy as np
 
 class AL_base:
@@ -47,42 +48,24 @@ class AL_base:
     def solve_sub_problem(self): 
         """solve the sub problem (stochastic)
         """
-        m = nn.Sigmoid()
-        if not self.sto:
-            self.optim.zero_grad()
         for idx, X, y in self.trainloader:
             X, y = X.to(self.device), y.to(self.device)
             self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
             from copy import deepcopy
             tmp_s = deepcopy(self.s.data)
 
-            if self.solver.lower() == "AdamW".lower():
-                if self.sto:
-                    self.optim.zero_grad()
+            self.optim.zero_grad()
+            with torch.cuda.amp.autocast():
                 L = self.AL_func()
-                L.backward()
-                if self.sto:
-                    self.optim.step()
-            else:
-                # L-BFGS
-                def closure():
-                    self.optim.zero_grad()
-                    L = self.AL_func()
-                    L.backward()
-                    return L
-                self.optim.step(closure)
-            
-            self.s.requires_grad = True
-            # break
+            self.scaler.scale(L).backward()
+            self.scaler.unscale_(self.optim)
+            self.scaler.step(self.optim)
+            self.scaler.update()
 
             with torch.no_grad():
                 for i in idx:
                     tmp_s[i] = self.s.data[i]
-                    # tmp_s[i] = torch.sigmoid(self.s.data[i] - self.t) ## correct the bias by shif to right with a threhsold of 0.5
                 self.s.data.copy_(tmp_s)
-                # self.s.data.copy_(m(self.s.data-self.t) >= self.t)
-        if not self.sto:
-            self.optim.step()
         
 
         with torch.no_grad():
@@ -95,7 +78,32 @@ class AL_base:
                 ret_val += L.item()
         return ret_val
                 
+    def warmstart(self):
+        """warm start to get a good initialization, empirically this can speedup the convergence and improve the performance
+        """
+        optim = AdamW([
+                {'params': self.model.parameters(), 'lr': self.lr}
+                ])
+        # criterion = WCE(npos=torch.sum(self.y==1).item(), nneg=torch.sum(self.y==0).item(), device=self.device)
+        criterion = self.args.criterion
+        for epoch in range(self.warm_start):
+            self.model.train()
+            for _, X, y in self.trainloader:
+                y = y.view(-1).long()
+                X = X.float()
+                X, y = X.to(self.device), y.to(self.device)
+                optim.zero_grad()
+                loss = criterion(self.model(X), y.flatten().long())
+                loss.backward()
+                optim.step()
                 
+            with torch.no_grad():
+                self.model.eval()
+                train_metrics = self.test(self.trainloader)
+                
+                print(f"========== Warm Start Round {epoch}/{self.warm_start} ===========")
+                print("Precision: {:.3f} \t Recall {:.3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
+                        train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
         
     
     def update_langrangian_multiplier(self):

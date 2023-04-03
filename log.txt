@@ -1,0 +1,129 @@
+(559,) (559,)
+torch.Size([559, 20]) (559,)
+torch.Size([559, 1]) (559,)
+(70,) (70,)
+torch.Size([70, 20]) (70,)
+torch.Size([70, 1]) (70,)
+(70,) (70,)
+torch.Size([70, 20]) (70,)
+torch.Size([70, 1]) (70,)
+{'feature_dim': 20, 'label_num': 2, 'total_num': 699, 'train_num': 559, 'test_num': 70, 'val_num': 70, 'label_distribution': Counter({0: 458, 1: 241})}
+========== Round 0/20 ===========
+Precision: 0.283668 	 Recall 0.512953 	 F_beta 0.365 	 AP 0.314
+Obj: -0.957368791103363	IEQ: 0.0026754927821457386	EQ: 0.04315349459648132
+(val)Precision: 0.229167 	 Recall 0.458333 F_beta 0.306 AP:0.291
+(test)Precision: 0.307692 	 Recall 0.666667 F_beta 0.421 AP:0.319
+train for 7 iterations
+========== Round 1/20 ===========
+Precision: 0.289398 	 Recall 0.523316 	 F_beta 0.373 	 AP 0.316
+Obj: -0.9627324938774109	IEQ: 0.0033184473868459463	EQ: 0.11554095894098282
+(val)Precision: 0.224490 	 Recall 0.458333 F_beta 0.301 AP:0.289
+(test)Precision: 0.320000 	 Recall 0.666667 F_beta 0.432 AP:0.328
+train for 36 iterations
+========== Round 2/20 ===========
+Precision: 0.241722 	 Recall 0.378238 	 F_beta 0.295 	 AP 0.306
+Obj: -0.976304829120636	IEQ: 0.0023480968084186316	EQ: 0.044576313346624374
+(val)Precision: 0.229167 	 Recall 0.458333 F_beta 0.306 AP:0.291
+(test)Precision: 0.270833 	 Recall 0.541667 F_beta 0.361 AP:0.304
+train for 8 iterations
+========== Round 3/20 ===========
+Precision: 0.242424 	 Recall 0.373057 	 F_beta 0.294 	 AP 0.307
+Obj: -0.9782071113586426	IEQ: 0.002716224640607834	EQ: 0.04903687536716461
+(val)Precision: 0.224490 	 Recall 0.458333 F_beta 0.301 AP:0.289
+(test)Precision: 0.270833 	 Recall 0.541667 F_beta 0.361 AP:0.304
+train for 32 iterations
+========== Round 4/20 ===========
+Precision: 0.240310 	 Recall 0.321244 	 F_beta 0.275 	 AP 0.312
+Obj: -0.9829938411712646	IEQ: 0.000459096219856292	EQ: 0.0279337540268898
+(val)Precision: 0.210526 	 Recall 0.333333 F_beta 0.258 AP:0.299
+(test)Precision: 0.238095 	 Recall 0.416667 F_beta 0.303 AP:0.299
+train for 7 iterations
+========== Round 5/20 ===========
+Precision: 0.218254 	 Recall 0.284974 	 F_beta 0.247 	 AP 0.309
+Obj: -0.9838659167289734	IEQ: 0.0008819851209409535	EQ: 0.028390398249030113
+(val)Precision: 0.216216 	 Recall 0.333333 F_beta 0.262 AP:0.301
+(test)Precision: 0.238095 	 Recall 0.416667 F_beta 0.303 AP:0.299
+train for 6 iterations
+========== Round 6/20 ===========
+Precision: 0.207317 	 Recall 0.264249 	 F_beta 0.232 	 AP 0.309
+Obj: -0.9845549464225769	IEQ: 0.004148961044847965	EQ: 0.039602480828762054
+(val)Precision: 0.166667 	 Recall 0.250000 F_beta 0.200 AP:0.299
+(test)Precision: 0.209302 	 Recall 0.375000 F_beta 0.269 AP:0.293
+train for 36 iterations
+========== Round 7/20 ===========
+Precision: 0.190909 	 Recall 0.217617 	 F_beta 0.203 	 AP 0.312
+Obj: -0.9872859120368958	IEQ: 0.002633356023579836	EQ: 0.0133907375857234
+(val)Precision: 0.187500 	 Recall 0.250000 F_beta 0.214 AP:0.304
+(test)Precision: 0.205882 	 Recall 0.291667 F_beta 0.241 AP:0.303
+train for 16 iterations
+========== Round 8/20 ===========
+Precision: 0.189320 	 Recall 0.202073 	 F_beta 0.195 	 AP 0.314
+Obj: -0.9882384538650513	IEQ: 0.0005622530006803572	EQ: 0.010798569768667221
+(val)Precision: 0.172414 	 Recall 0.208333 F_beta 0.189 AP:0.307
+(test)Precision: 0.242424 	 Recall 0.333333 F_beta 0.281 AP:0.309
+train for 19 iterations
+========== Round 9/20 ===========
+Precision: 0.160194 	 Recall 0.170984 	 F_beta 0.165 	 AP 0.314
+Obj: -0.9891707301139832	IEQ: 0.0004864374059252441	EQ: 0.006460585631430149
+(val)Precision: 0.172414 	 Recall 0.208333 F_beta 0.189 AP:0.307
+(test)Precision: 0.181818 	 Recall 0.250000 F_beta 0.211 AP:0.303
+train for 16 iterations
+========== Round 10/20 ===========
+Precision: 0.093596 	 Recall 0.098446 	 F_beta 0.096 	 AP 0.320
+Obj: -0.9898386597633362	IEQ: 0.00040014731348492205	EQ: 0.006913809105753899
+(val)Precision: 0.187500 	 Recall 0.250000 F_beta 0.214 AP:0.304
+(test)Precision: 0.137931 	 Recall 0.166667 F_beta 0.151 AP:0.309
+train for 8 iterations
+========== Round 11/20 ===========
+Precision: 0.088670 	 Recall 0.093264 	 F_beta 0.091 	 AP 0.321
+Obj: -0.9901540279388428	IEQ: 0.0003272290632594377	EQ: 0.005723778158426285
+(val)Precision: 0.166667 	 Recall 0.208333 F_beta 0.185 AP:0.306
+(test)Precision: 0.129032 	 Recall 0.166667 F_beta 0.145 AP:0.307
+train for 5 iterations
+========== Round 12/20 ===========
+Precision: 0.058824 	 Recall 0.062176 	 F_beta 0.060 	 AP 0.327
+Obj: -0.9903520345687866	IEQ: 0.0021540627349168062	EQ: 0.006577172316610813
+(val)Precision: 0.137931 	 Recall 0.166667 F_beta 0.151 AP:0.309
+(test)Precision: 0.121212 	 Recall 0.166667 F_beta 0.140 AP:0.306
+train for 18 iterations
+========== Round 13/20 ===========
+Precision: 0.035354 	 Recall 0.036269 	 F_beta 0.036 	 AP 0.334
+Obj: -0.9909180998802185	IEQ: 0.00011563356383703649	EQ: 0.009850769303739071
+(val)Precision: 0.111111 	 Recall 0.125000 F_beta 0.118 AP:0.314
+(test)Precision: 0.038462 	 Recall 0.041667 F_beta 0.040 AP:0.330
+train for 6 iterations
+========== Round 14/20 ===========
+Precision: 0.015544 	 Recall 0.015544 	 F_beta 0.016 	 AP 0.340
+Obj: -0.9911067485809326	IEQ: 0.0004166534054093063	EQ: 0.005483198910951614
+(val)Precision: 0.107143 	 Recall 0.125000 F_beta 0.115 AP:0.313
+(test)Precision: 0.000000 	 Recall 0.000000 F_beta nan AP:0.343
+train for 15 iterations
+========== Round 15/20 ===========
+Precision: 0.000000 	 Recall 0.000000 	 F_beta nan 	 AP 0.345
+Obj: -0.9915038347244263	IEQ: 0.0003824471205007285	EQ: 0.003419094253331423
+(val)Precision: 0.076923 	 Recall 0.083333 F_beta 0.080 AP:0.321
+(test)Precision: 0.000000 	 Recall 0.000000 F_beta nan AP:0.343
+train for 6 iterations
+========== Round 16/20 ===========
+Precision: 0.005348 	 Recall 0.005181 	 F_beta 0.005 	 AP 0.343
+Obj: -0.991641104221344	IEQ: 1.6390591554227285e-05	EQ: 0.000976707087829709
+(val)Precision: 0.076923 	 Recall 0.083333 F_beta 0.080 AP:0.321
+(test)Precision: 0.000000 	 Recall 0.000000 F_beta nan AP:0.343
+train for 9 iterations
+========== Round 17/20 ===========
+Precision: 0.005525 	 Recall 0.005181 	 F_beta 0.005 	 AP 0.343
+Obj: -0.9918590784072876	IEQ: 0.0003026190388482064	EQ: 0.0012964066118001938
+(val)Precision: 0.040000 	 Recall 0.041667 F_beta 0.041 AP:0.330
+(test)Precision: 0.040000 	 Recall 0.041667 F_beta 0.041 AP:0.330
+train for 9 iterations
+========== Round 18/20 ===========
+Precision: 0.005405 	 Recall 0.005181 	 F_beta 0.005 	 AP 0.343
+Obj: -0.9920605421066284	IEQ: 0.0004913260345347226	EQ: 0.00981907919049263
+(val)Precision: 0.071429 	 Recall 0.083333 F_beta 0.077 AP:0.320
+(test)Precision: 0.037037 	 Recall 0.041667 F_beta 0.039 AP:0.330
+train for 6 iterations
+========== Round 19/20 ===========
+Precision: 0.005714 	 Recall 0.005181 	 F_beta 0.005 	 AP 0.344
+Obj: -0.9921766519546509	IEQ: 1.5024707863631193e-05	EQ: 0.00024736628984101117
+(val)Precision: 0.080000 	 Recall 0.083333 F_beta 0.082 AP:0.321
+(test)Precision: 0.000000 	 Recall 0.000000 F_beta nan AP:0.343

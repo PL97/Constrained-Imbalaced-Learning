@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.optim import SGD, AdamW, Adam, LBFGS
+
 import numpy as np
 import sys
 
@@ -18,8 +18,7 @@ class FROP(FPOR):
         y = self.active_set['y']
         all_y = self.trainloader.targets.to(self.device)
         all_s = self.adjust_s(self.s)
-        m = nn.Softmax(dim=1)
-        fx = m(self.model(X))[:, 1].view(-1, 1)
+        fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
         # return -all_s.T@(all_y==1).double()/torch.sum(all_s) - 0.1*torch.norm(fx *(1-fx))/idx.shape[0]
         
         n_pos = torch.sum(all_y==1)
@@ -38,8 +37,7 @@ class FROP(FPOR):
         all_y = self.trainloader.targets.to(self.device)
         s = self.adjust_s(self.s[idx])
         all_s = self.adjust_s(self.s)
-        m = nn.Softmax(dim=1)
-        fx = m(self.model(X))[:, 1].view(-1, 1)
+        fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
 
         ineq = torch.maximum(torch.tensor(0), \
             self.alpha - all_s.T@(all_y==1).double() / torch.sum(all_y==1) 

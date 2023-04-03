@@ -12,6 +12,8 @@ from models.utils import EarlyStopper
 from sklearn.metrics import average_precision_score
 from copy import deepcopy
 
+from utils.utils import log
+
 
 
 class FPOR(AL_base):
@@ -43,10 +45,10 @@ class FPOR(AL_base):
         self.rho = self.args.rho                             #10
         self.delta = self.args.delta                         #1
         self.workspace = self.args.workspace
-        self.sto = self.args.sto
         
         self.lr_adaptor = 1
         self.r = 0
+        self.softmax = nn.Softmax(dim=1)
         
         
         ## track hyparam
@@ -76,8 +78,6 @@ class FPOR(AL_base):
         ## optimization variables: ls are Lagrangian multipliers
         self.s = torch.randn((args.datastats['train_num'], 1), requires_grad=True, \
                             dtype=torch.float64, device=self.device)
-        # self.s = torch.sigmoid(self.s)
-        # self.s.data.copy_(trainloader.targets)
 
         num_constrains = args.num_constrains
             
@@ -85,32 +85,25 @@ class FPOR(AL_base):
                             dtype=torch.float64, device=self.device)
         
         self.active_set = None ## this defines a set of activate data(includes indices) that used for optimizing subproblem
-        if args.solver.lower() == "AdamW".lower():
-            self.optim = AdamW([
-                        {'params': self.model.parameters(), 'lr': self.lr},
-                        {'params': self.s, 'lr': self.lr_s}  ##best to set as 0.5
-                        ])
-        else:
-            self.optim = LBFGS(list(self.model.parameters()) + list(self.s), history_size=10, max_iter=4, line_search_fn="strong_wolfe")
+        self.optim = AdamW([
+                    {'params': self.model.parameters(), 'lr': self.lr},
+                    {'params': self.s, 'lr': self.lr_s}  ##best to set as 0.5
+                    ])
         
         self.optimizer = args.solver
         
         self.earlystopper = EarlyStopper(patience=5)
         self.beta = 1 ## to calualte the F-Beta score
         self.pre_constrain = np.inf
+
+        self.scaler = torch.cuda.amp.GradScaler()
     
     def objective(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
-        # s = self.s[idx]
         s = self.adjust_s(self.s)
-        # all_y = y.to(self.device)
         all_y = self.trainloader.targets.to(self.device)
         n_pos = torch.sum(all_y==1)
-        m = nn.Softmax(dim=1)
-        # return -s.T@(all_y==1).double()/n_pos
-        fx = m(self.model(X))[:, 1].view(-1, 1)
-        # return -s.T@(all_y==1).double()/n_pos - 0.1*torch.mean(fx.T*torch.log2(fx))
-        # return -s.T@(all_y==1).double()/n_pos
+        fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
         n_pos = torch.sum(all_y==1)
         n_negs = torch.sum(all_y==0)
         weights = torch.tensor([n_pos/(n_pos+n_negs), n_negs/(n_negs+n_pos)]).to(self.device)
@@ -128,15 +121,11 @@ class FPOR(AL_base):
         all_y = self.trainloader.targets.to(self.device)
         s = self.adjust_s(self.s[idx])
         all_s = self.adjust_s(self.s)
-        m = nn.Softmax(dim=1)
         X = X.float()
-        fx = m(self.model(X))[:, 1].view(-1, 1)
+        fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
         ineq = torch.maximum(torch.tensor(0), \
             self.alpha - all_s.T@(all_y==1).double() / torch.sum(all_s) 
             )
-        # eqs = torch.maximum(s+fx-1-self.t, torch.tensor(0)) - torch.maximum(-s, fx-self.t)
-        # zero_constrain = torch.mean(torch.abs(self.s[idx]*(1-self.s[idx])))
-        # return torch.cat([ineq.view(1, 1), (torch.mean(torch.abs(eqs))+zero_constrain).view(1, 1)], dim=0)
         
         n_pos = torch.sum(all_y==1)
         n_negs = torch.sum(all_y==0)
@@ -155,46 +144,17 @@ class FPOR(AL_base):
         delta = 0.1
         delta_2 = 0.1
         return torch.cat([torch.log(ineq/delta + 1).view(1, 1), torch.log(eqs_n/delta_2 + 1), torch.log(eqs_p/delta_2 + 1)])
-    
-    
-    def warmstart(self):
-        """warm start to get a good initialization, empirically this can speedup the convergence and improve the performance
-        """
-        optim = AdamW([
-                {'params': self.model.parameters(), 'lr': self.lr}
-                ])
-        # criterion = WCE(npos=torch.sum(self.y==1).item(), nneg=torch.sum(self.y==0).item(), device=self.device)
-        criterion = self.args.criterion
-        for epoch in range(self.warm_start):
-            self.model.train()
-            for _, X, y in self.trainloader:
-                y = y.view(-1).long()
-                X = X.float()
-                X, y = X.to(self.device), y.to(self.device)
-                optim.zero_grad()
-                loss = criterion(self.model(X), y.flatten().long())
-                loss.backward()
-                optim.step()
-                
-            with torch.no_grad():
-                self.model.eval()
-                train_metrics = self.test(self.trainloader)
-                
-                print(f"========== Warm Start Round {epoch}/{self.warm_start} ===========")
-                print("Precision: {:.3f} \t Recall {:.3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
-                        train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
 
     
     @torch.no_grad()
     def initialize_with_feasiblity(self):
         """Another trick that boost the performance, initialize variable s with feasiblity guarantee
         """
-        m = nn.Softmax(dim=1)
         self.s -= self.s
         for idx, X, y in self.trainloader:
             X = X.to(self.device)
             X = X.float()
-            self.s[idx] += (m(self.model(X))[:, 1].view(-1, 1) >= self.t).int()/self.lr_adaptor
+            self.s[idx] += (self.softmax(self.model(X))[:, 1].view(-1, 1) >= self.t).int()/self.lr_adaptor
 
     def fit(self):
         best_AP = 0
@@ -202,7 +162,6 @@ class FPOR(AL_base):
             self.warmstart()
         
         # self.initialize_with_feasiblity()
-        m = nn.Sigmoid()
         for r in range(self.rounds):
             self.r = r
             # Log gradients and model parameters
@@ -216,9 +175,6 @@ class FPOR(AL_base):
                     break
         
             self.earlystopper.reset()
-            # wandb.watch(self.model)        
-            ## update lagrangian multiplier and evaluation
-            # self.initialize_with_feasiblity()
             with torch.no_grad():
                 self.model.eval()
                 self.update_langrangian_multiplier()
@@ -228,54 +184,19 @@ class FPOR(AL_base):
                 val_metrics = self.test(self.valloader)
                 test_metrics = self.test(self.testloader)
                 
-                print(f"========== Round {r}/{self.rounds} ===========")
-                print("Precision: {:3f} \t Recall {:3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
-                        train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
-                constrains = self.constrain()
-                print("Obj: {}\tIEQ: {}\tEQ: {}".format(self.objective().item(), constrains[0].item(), torch.sum(constrains[1:]).item()))
-                print("(val)Precision: {:3f} \t Recall {:3f} F_beta {:.3f} AP:{:.3f}".format(\
-                        val_metrics['precision'], val_metrics['recall'], val_metrics['F_beta'], val_metrics['AP']))
-                  
-                print("(test)Precision: {:3f} \t Recall {:3f} F_beta {:.3f} AP:{:.3f}".format(\
-                        test_metrics['precision'], test_metrics['recall'], test_metrics['F_beta'], test_metrics['AP']))
+                constraints = self.constrain()
+                obj = self.objective().item()
+                
+                log(constraints, obj, train_metrics, val_metrics, test_metrics, verbose=True, r=r, rounds=self.rounds)
                   
                 if val_metrics['AP'] > best_AP:
                     final_model = deepcopy(self.model)
                     best_AP = val_metrics['AP']
                 
                 
-                wandb.log({ "trainer/global_step": r, \
-                            "train/Obj": self.objective().item(), \
-                            "train/IEQ": constrains[0].item(), \
-                            "train/EQ": torch.sum(constrains[1:]).item(), \
-                            "train/Precision": train_metrics['precision'], \
-                            "train/Recall": train_metrics['recall'], \
-                            "train/F_beta": train_metrics['F_beta' ], \
-                            "train/AP": train_metrics['AP'], \
-                            "val/Precision": val_metrics['precision'], \
-                            "val/Recall": val_metrics['recall'], \
-                            "val/F_beta": val_metrics['F_beta'], \
-                            "val/AP": val_metrics['AP'], \
-                            "test/Precision": test_metrics['precision'], \
-                            "test/Recall": test_metrics['recall'], \
-                            "test/F_beta": test_metrics['F_beta'], \
-                            "test/AP": test_metrics['AP']
-                            })
-                
         
         final_model_name = f"{self.workspace}/final.pt"
         torch.save(self.model, final_model_name)
-        # art_model = wandb.Artifact(f"{self.args.dataset}-{self.args.model}-{self.wandb_run.id}", type='model')
-        # art_model.add_file(final_model_name)
-        # wandb.log_artifact(art_model, aliases=["final"])
-        
-        try:
-            wandb.run.summary["train_precision"] = train_metrics['precision']
-            wandb.run.summary["train_recall"] = train_metrics['recall']
-            wandb.run.summary["val_precision"] = val_metrics['precision']
-            wandb.run.summary["val_recall"] = val_metrics['recall']
-        except:
-            print("skip AL...")
         
         # self.draw_graphs()
 

@@ -34,7 +34,7 @@ class UCI_dataset(Dataset):
             return self.X[index], self.y[index]
   
 
-def get_data(name='adult', batch_size=10, random_seed=1997, with_idx=True):
+def get_data(name='adult', batch_size=10, random_seed=1997, with_idx=True, shuffle=False):
     """get UCI dataset and prepare dataloader
 
     Args:
@@ -91,13 +91,13 @@ def get_data(name='adult', batch_size=10, random_seed=1997, with_idx=True):
 
 
     if with_idx:
-        trainloader = FastTensorDataLoader(np.asarray(range(X_train.shape[0])), X_train, y_train, batch_size=batch_size, shuffle=True)
-        valloader = FastTensorDataLoader(np.asarray(range(X_val.shape[0])), X_val, y_val, batch_size=batch_size, shuffle=True)
-        testloader = FastTensorDataLoader(np.asarray(range(X_test.shape[0])), X_test, y_test, batch_size=batch_size, shuffle=True)
+        trainloader = FastTensorDataLoader(np.asarray(range(X_train.shape[0])), X_train, y_train, batch_size=batch_size, shuffle=shuffle)
+        valloader = FastTensorDataLoader(np.asarray(range(X_val.shape[0])), X_val, y_val, batch_size=batch_size, shuffle=shuffle)
+        testloader = FastTensorDataLoader(np.asarray(range(X_test.shape[0])), X_test, y_test, batch_size=batch_size, shuffle=shuffle)
     else:
-        trainloader = FastTensorDataLoader(X_train, y_train, batch_size=batch_size, shuffle=True)
-        valloader = FastTensorDataLoader(X_val, y_val, batch_size=batch_size, shuffle=True)
-        testloader = FastTensorDataLoader(X_test, y_test, batch_size=batch_size, shuffle=True)
+        trainloader = FastTensorDataLoader(X_train, y_train, batch_size=batch_size, shuffle=shuffle)
+        valloader = FastTensorDataLoader(X_val, y_val, batch_size=batch_size, shuffle=shuffle)
+        testloader = FastTensorDataLoader(X_test, y_test, batch_size=batch_size, shuffle=shuffle)
     
     
     
