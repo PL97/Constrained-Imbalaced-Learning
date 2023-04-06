@@ -193,7 +193,7 @@ class AL_base:
             ax = sns.displot(data=tmp_df, x="prediciton", hue="target")
             ax.fig.set_figwidth(10)
             ax.fig.set_figheight(5)
-            plt.savefig("distribution.png")
+            plt.savefig(f"distribution_{self.args.saved_fig_name}.png")
             plt.close()
             return
         

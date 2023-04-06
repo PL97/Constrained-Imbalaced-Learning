@@ -34,6 +34,7 @@ class OAP(AL_base):
         
         self.lr_adaptor = 1
         self.r = 0
+        self.softmax = nn.Softmax(dim=1)
         
         
         ## track hyparam
@@ -52,7 +53,8 @@ class OAP(AL_base):
                     'warm_start': self.warm_start, \
                     'rho': self.rho, \
                     'delta': self.delta, \
-                    'batch_size': self.args.batch_size
+                    'batch_size': self.args.batch_size, \
+                    'reg': args.reg
                    })
         wandb.define_metric("trainer/global_step")
         wandb.define_metric("train/*", step_metric="trainer/global_step")
@@ -89,8 +91,6 @@ class OAP(AL_base):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
         all_y = self.trainloader.targets.to(self.device)
         all_s = self.adjust_s(self.s)
-
-        m = nn.Softmax(dim=1)
         
         n_pos = torch.sum(all_y==1)
         n_negs = torch.sum(all_y==0)
@@ -100,7 +100,6 @@ class OAP(AL_base):
         reweights[y==1] = weights[1]
         
         ret = 0
-        # print(idx)
         for i in idx:
             nominator, denominator = 0, 0
             if all_y[i] == 0:
@@ -110,9 +109,10 @@ class OAP(AL_base):
             ret += (nominator/denominator)
         obj = (1/n_pos)*ret
         
+        # return -obj
         reg = reweights*(self.fx - torch.mean(self.fx)) ** 2
         
-        return -obj - 1*torch.norm(reg)/idx.shape[0]
+        return -obj - self.args.reg*torch.norm(reg)/idx.shape[0]
 
 
 
@@ -122,7 +122,6 @@ class OAP(AL_base):
         s = self.s[idx, :]
         s = s[:, idx]
         s = self.adjust_s(s=s)
-        m = nn.Softmax(dim=1)
         
         constrains_1 = []
         constrains_2 = []
@@ -159,11 +158,10 @@ class OAP(AL_base):
         Returns:
             augmented lagrangian function
         """
-        m = nn.Sigmoid()
         X, idx, y = self.active_set['X'], self.active_set['idx'], self.active_set['y']
         ls = self.ls
         with torch.cuda.amp.autocast():
-            self.fx = m(self.model(X))[:, 1].view(-1, 1)
+            self.fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
 
         const = self.constrain()
         return self.objective() + ls.T@const \
@@ -223,7 +221,6 @@ class OAP(AL_base):
             self.warmstart()
         
         # self.initialize_with_feasiblity()
-        m = nn.Sigmoid()
         for r in range(self.rounds):
             self.r = r
             # Log gradients and model parameters

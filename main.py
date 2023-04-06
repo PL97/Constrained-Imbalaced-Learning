@@ -51,6 +51,10 @@ def setup():
     parser.add_argument('--delta', type=float, default=1)
     parser.add_argument('--rho', type=float, default=10)
     parser.add_argument('--sto', type=int, default=0)
+
+    parser.add_argument('--saved_fig_name', type=str, default="")
+    parser.add_argument('--reg', type=float, default=0.1)
+    
     
     
     args = parser.parse_args()

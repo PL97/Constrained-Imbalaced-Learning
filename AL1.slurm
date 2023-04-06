@@ -31,11 +31,11 @@ CUDA_VISIBLE_DEVICES=0 python main.py --run_name constrained_IL\
                 --alpha 0.99 \
                 --t 0.5 \
                 --solver AdamW \
-                --warm_start 0 \
+                --warm_start 10 \
                 --rho 1 \
                 --delta 1 \
                 --sto 1 \
-                --saved_fig_name 01 \
+                --saved_fig_name 01_ws \
                 --reg 0.1
 
 ## example: sbatch AL.slurm AL_FPOR breast-cancer-wisc-diag 20

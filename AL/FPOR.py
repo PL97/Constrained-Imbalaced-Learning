@@ -67,7 +67,8 @@ class FPOR(AL_base):
                     'warm_start': self.warm_start, \
                     'rho': self.rho, \
                     'delta': self.delta, \
-                    'batch_size': self.args.batch_size
+                    'batch_size': self.args.batch_size, \
+                    'reg': args.reg
                    })
         wandb.define_metric("trainer/global_step")
         wandb.define_metric("train/*", step_metric="trainer/global_step")
@@ -111,7 +112,7 @@ class FPOR(AL_base):
         reweights = torch.ones(X.shape[0], 1).to(self.device)
         reweights[y==1] = weights[1]
 
-        return -s.T@(all_y==1).double()/n_pos + 0.1*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
+        return -s.T@(all_y==1).double()/n_pos + self.args['reg']*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
         
 
     
