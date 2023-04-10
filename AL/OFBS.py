@@ -30,7 +30,7 @@ class OFBS(FPOR):
         reweights = torch.ones(X.shape[0], 1).to(self.device)
         reweights[y==1] = weights[1]
         
-        return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) + self.args['reg']*torch.norm(reweights* fx *(1-fx))/idx.shape[0]
+        return -all_s.T@(all_y==1).double()/(all_s.T@(all_y==0).double()+torch.sum((all_y==1).double())*self.beta**2) + self.args.reg*torch.norm(reweights* fx *(1-fx))/idx.shape[0]
 
 
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0

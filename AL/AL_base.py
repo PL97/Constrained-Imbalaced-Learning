@@ -54,19 +54,21 @@ class AL_base:
             from copy import deepcopy
             tmp_s = deepcopy(self.s.data)
 
-            self.optim.zero_grad()
+            
             with torch.cuda.amp.autocast():
                 L = self.AL_func()
             self.scaler.scale(L).backward()
-            self.scaler.unscale_(self.optim)
-            self.scaler.step(self.optim)
-            self.scaler.update()
 
             with torch.no_grad():
                 for i in idx:
                     tmp_s[i] = self.s.data[i]
                 self.s.data.copy_(tmp_s)
         
+        self.scaler.unscale_(self.optim)
+        self.scaler.step(self.optim)
+        self.scaler.update()
+        self.optim.zero_grad()
+
 
         with torch.no_grad():
             self.model.train()

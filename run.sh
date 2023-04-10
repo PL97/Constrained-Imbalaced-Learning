@@ -17,18 +17,18 @@
 
 
 CUDA_VISIBLE_DEVICES=0 python main.py --run_name constrained_IL \
-                --dataset breast-cancer-wisc \
+                --dataset cifar100 \
                 --model MLP \
                 --batch_size 8000 \
                 --learning_rate 5e-4 \
                 --learning_rate_s 5e-2\
-                --method AL_OAP \
-                --subprob_max_epoch 1 \
-                --rounds 1 \
+                --method AL_FPOR \
+                --subprob_max_epoch 1000 \
+                --rounds 50 \
                 --alpha 0.99 \
                 --t 0.5 \
                 --solver AdamW \
-                --warm_start 10 \
+                --warm_start 100 \
                 --rho 1 \
                 --delta 1 \
                 --sto 1 \
