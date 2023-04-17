@@ -23,7 +23,7 @@ class FastTensorDataLoader:
         self.tensors = tensors
 
         self.dataset_len = self.tensors[0].shape[0]
-        self.batch_size = batch_size
+        self.batch_size = batch_size if batch_size < self.dataset_len else self.dataset_len
         self.shuffle = shuffle
         self.data = tensors[-2]
         self.targets = tensors[-1]
