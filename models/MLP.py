@@ -16,9 +16,6 @@ class MLP(nn.Module):
         else:
             layers.append(nn.Linear(hidden_dim, output_dim, bias=bias))
         
-        # layers = [nn.Linear(input_dim, 1, bias=bias)]
-        # layers.append(nn.Sigmoid())
-        
         
         self.net = nn.Sequential(*layers)
     def forward(self, X):

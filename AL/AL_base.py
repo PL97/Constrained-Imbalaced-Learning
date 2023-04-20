@@ -52,7 +52,8 @@ class AL_base:
             X, y = X.to(self.device), y.to(self.device)
             self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
             from copy import deepcopy
-            tmp_s = deepcopy(self.s.data)
+            with torch.no_grad():
+                tmp_s = deepcopy(self.s.data)
 
             
             with torch.cuda.amp.autocast():
@@ -88,16 +89,24 @@ class AL_base:
                 ])
         # criterion = WCE(npos=torch.sum(self.y==1).item(), nneg=torch.sum(self.y==0).item(), device=self.device)
         criterion = self.args.criterion
+        scaler = torch.cuda.amp.GradScaler()
         for epoch in range(self.warm_start):
             self.model.train()
             for _, X, y in self.trainloader:
+                optim.zero_grad()
                 y = y.view(-1).long()
                 X = X.float()
                 X, y = X.to(self.device), y.to(self.device)
-                optim.zero_grad()
-                loss = criterion(self.model(X), y.flatten().long())
-                loss.backward()
-                optim.step()
+                # loss = criterion(self.model(X), y)
+                # loss.backward()
+                # optim.step()
+                with torch.cuda.amp.autocast():
+                    loss = criterion(self.model(X), y.flatten().long())
+
+                scaler.scale(loss).backward()
+                scaler.step(optim)
+                scaler.update()
+                
                 
             with torch.no_grad():
                 self.model.eval()
@@ -164,13 +173,22 @@ class AL_base:
             tmp_score = m(model(X))[:, 1].detach().cpu().numpy()
             pred_score.extend(tmp_score)
             prediction.extend((tmp_score >= self.t).astype(int))
-            labels.extend(y)
+            labels.extend(y.detach().cpu().numpy())
             indices.extend(idx)
             
+        # print(prediction, len(prediction))s
         prediction = np.stack(prediction, axis=0).reshape(-1, 1)
         pred_score = np.stack(pred_score, axis=0).reshape(-1, 1)
         indices = np.stack(indices, axis=0).reshape(-1, 1)
-        labels = torch.stack(labels, axis=0).detach().cpu().numpy()
+        labels = np.stack(labels, axis=0).reshape(-1, 1)
+        
+        # print(prediction.shape, pred_score.shape, indices.shape, labels.shape)
+        # print(np.amin(prediction), np.amax(prediction))
+        # print(np.amin(pred_score), np.amax(pred_score))
+        # print(np.amin(indices), np.amax(indices))
+        # print(np.amin(labels), np.amax(labels))
+        
+        
         TP = int(prediction.T@(labels==1).astype(int))
         precision = 1.0*TP/np.sum(prediction)
         recall = 1.0*TP/np.sum(labels==1)

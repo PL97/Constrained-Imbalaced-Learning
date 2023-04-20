@@ -123,9 +123,11 @@ class FPOR(AL_base):
         s = self.adjust_s(self.s[idx])
         all_s = self.adjust_s(self.s)
         X = X.float()
+        N = y.shape[0]
         fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
-        ineq = torch.maximum(torch.tensor(0), \
-            self.alpha - all_s.T@(all_y==1).double() / torch.sum(all_s) 
+        ineq = (1./N) * torch.maximum(torch.tensor(0), \
+            self.alpha * torch.sum(all_s) - all_s.T@(all_y==1).double()  
+            # self.alpha - all_s.T@(all_y==1).double() / torch.sum(all_s)
             )
         
         n_pos = torch.sum(all_y==1)
@@ -182,6 +184,9 @@ class FPOR(AL_base):
                 
                 ## log training performance
                 train_metrics = self.test(self.trainloader)
+                # for x, y, z in self.valloader:
+                #     print(x, y, z)
+                # asdf
                 val_metrics = self.test(self.valloader)
                 test_metrics = self.test(self.testloader)
                 

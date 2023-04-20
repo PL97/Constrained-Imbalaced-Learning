@@ -11,23 +11,23 @@
 ##SBATCH --gres=gpu:v100:1
 
 #SBATCH --gres=gpu:a100:1
-#SBATCH -p a100-4
-##SBATCH -p apollo_agate
+##SBATCH -p a100-4
+#SBATCH -p apollo_agate
 
 module load parallel
 
 cd /home/jusun/peng0347/Constrained-Imbalaced-Learning
 export PATH=/home/jusun/peng0347/miniconda3/envs/tf_opt/bin:$PATH
 # export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/jusun/peng0347/miniconda3/envs/tf_opt/
-CUDA_VISIBLE_DEVICES=0 python main.py --run_name constrained_IL\
-                --dataset breast-cancer-wisc \
+python main.py --run_name constrained_IL \
+                --dataset cifar100 \
                 --model MLP \
-                --batch_size 8000 \
-                --learning_rate 5e-4 \
-                --learning_rate_s 5e-2\
-                --method AL_OAP \
+                --batch_size 6000 \
+                --learning_rate 1e-3 \
+                --learning_rate_s 1e-2 \
+                --method AL_FPOR \
                 --subprob_max_epoch 100 \
-                --rounds 20 \
+                --rounds 50 \
                 --alpha 0.99 \
                 --t 0.5 \
                 --solver AdamW \
@@ -35,7 +35,7 @@ CUDA_VISIBLE_DEVICES=0 python main.py --run_name constrained_IL\
                 --rho 1 \
                 --delta 1 \
                 --sto 1 \
-                --saved_fig_name 01 \
-                --reg 0.1
+                --reg 0.1 \
+                --saved_fig_name 01_ws
 
 ## example: sbatch AL.slurm AL_FPOR breast-cancer-wisc-diag 20
