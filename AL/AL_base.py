@@ -37,8 +37,8 @@ class AL_base:
         X, idx = self.active_set['X'], self.active_set['idx']
         ls = torch.cat([self.ls[idx], self.ls[-1].reshape(1, 1)])
         X = X.to(self.device)
-        return self.objective() + ls.T@self.constrain() \
-                + (self.rho/2)* torch.sum(self.constrain()**2)
+        constraints = self.constrain()
+        return self.objective() + (1/self.rho)* self.ls.T@(torch.exp(self.rho*constraints)-1) + (1/self.rho)* self.ls.T@(torch.exp(-self.rho*constraints)-1)
 
     
     def adjust_s(self, s):
@@ -108,20 +108,23 @@ class AL_base:
                         train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
         
     
+    @torch.no_grad()
     def update_langrangian_multiplier(self):
         """update the lagrangian multipler
         """
-        tmp_constrains = 0
+        tmp_constrains = 1
         tmp_ineq = self.ls[-1]
         count_updates = 0
         for idx, X, y in self.trainloader:
             count_updates += 1
             X, y = X.to(self.device), y.to(self.device)
             self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
-            constrain_output = self.constrain()
-            self.ls[idx] += self.rho*constrain_output[:-1]
-            self.ls[-1] += self.rho*constrain_output[-1]
-            tmp_constrains += torch.norm(constrain_output).item()
+            # constrain_output = (1/self.rho)* (torch.exp(self.rho*self.constrain()**2)-1)
+            constraints = self.constrain()
+            constraints = (1/self.rho)*(torch.exp(self.rho*constraints)-1) + (1/self.rho)*(torch.exp(-self.rho*constraints)-1)
+            self.ls[idx] += self.rho*constraints[:-1]
+            self.ls[-1] += self.rho*constraints[-1]
+            tmp_constrains += torch.norm(constraints).item()
         self.ls[-1] = tmp_ineq + (self.ls[-1] - tmp_ineq)/count_updates  ## readjust update steps
         self.rho *= self.delta
         if tmp_constrains > self.pre_constrain:

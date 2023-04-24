@@ -17,7 +17,7 @@
 
 
 CUDA_VISIBLE_DEVICES=0 python main.py --run_name constrained_IL \
-                --dataset cifar100 \
+                --dataset wilt \
                 --model MLP \
                 --batch_size 8000 \
                 --learning_rate 5e-4 \
@@ -28,7 +28,7 @@ CUDA_VISIBLE_DEVICES=0 python main.py --run_name constrained_IL \
                 --alpha 0.99 \
                 --t 0.5 \
                 --solver AdamW \
-                --warm_start 100 \
+                --warm_start 0 \
                 --rho 1 \
                 --delta 1 \
                 --sto 1 \
