@@ -191,7 +191,6 @@ if __name__ == "__main__":
                             devices=1, 
                             strategy = DDPStrategy(find_unused_parameters=False),
                             log_every_n_steps=1,
-                            auto_scale_batch_size=True,
                             logger=args.wandb_logger)
         
         MyLightningModule = trainer_base(
