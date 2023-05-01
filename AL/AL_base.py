@@ -37,8 +37,9 @@ class AL_base:
         X, idx = self.active_set['X'], self.active_set['idx']
         ls = torch.cat([self.ls[idx], self.ls[-1].reshape(1, 1)])
         X = X.to(self.device)
-        return self.objective() + ls.T@self.constrain() \
-                + (self.rho/2)* torch.sum(self.constrain()**2)
+        constraints = self.constrain()
+        return self.objective() + ls.T@ constraints\
+                + (self.rho/2)* torch.sum(constraints**2)
 
     
     def adjust_s(self, s):
@@ -48,28 +49,17 @@ class AL_base:
     def solve_sub_problem(self): 
         """solve the sub problem (stochastic)
         """
+        L = 0
         for idx, X, y in self.trainloader:
             X, y = X.to(self.device), y.to(self.device)
             self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
-            from copy import deepcopy
-            with torch.no_grad():
-                tmp_s = deepcopy(self.s.data)
-
+            L += self.AL_func()
             
-            with torch.cuda.amp.autocast():
-                L = self.AL_func()
-            self.scaler.scale(L).backward()
-
-            with torch.no_grad():
-                for i in idx:
-                    tmp_s[i] = self.s.data[i]
-                self.s.data.copy_(tmp_s)
-        
-        self.scaler.unscale_(self.optim)
-        self.scaler.step(self.optim)
-        self.scaler.update()
+        L.backward()
+        self.optim.step()
         self.optim.zero_grad()
 
+        # print(f"solving sub problem: loss {L.item()}")
 
         with torch.no_grad():
             self.model.train()
@@ -89,7 +79,6 @@ class AL_base:
                 ])
         # criterion = WCE(npos=torch.sum(self.y==1).item(), nneg=torch.sum(self.y==0).item(), device=self.device)
         criterion = self.args.criterion
-        scaler = torch.cuda.amp.GradScaler()
         for epoch in range(self.warm_start):
             self.model.train()
             for _, X, y in self.trainloader:
@@ -97,15 +86,9 @@ class AL_base:
                 y = y.view(-1).long()
                 X = X.float()
                 X, y = X.to(self.device), y.to(self.device)
-                # loss = criterion(self.model(X), y)
-                # loss.backward()
-                # optim.step()
-                with torch.cuda.amp.autocast():
-                    loss = criterion(self.model(X), y.flatten().long())
-
-                scaler.scale(loss).backward()
-                scaler.step(optim)
-                scaler.update()
+                loss = criterion(self.model(X), y)
+                loss.backward()
+                optim.step()
                 
                 
             with torch.no_grad():
