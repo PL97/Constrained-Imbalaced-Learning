@@ -20,7 +20,7 @@
 python main.py --run_name constrained_IL_NIPS \
                 --dataset wilt \
                 --model MLP \
-                --batch_size 5000 \
+                --batch_size 6000 \
                 --learning_rate 1e-3 \
                 --learning_rate_s 5e-2 \
                 --method AL_FPOR \
@@ -29,7 +29,7 @@ python main.py --run_name constrained_IL_NIPS \
                 --alpha 0.99 \
                 --t 0.5 \
                 --solver AdamW \
-                --warm_start 30 \
+                --warm_start 0 \
                 --rho 10 \
                 --delta 1 \
                 --sto 1 \

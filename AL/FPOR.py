@@ -126,7 +126,7 @@ class FPOR(AL_base):
         N = y.shape[0]
         fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
         ineq = (1./N) * torch.maximum(torch.tensor(0), \
-            self.alpha * torch.sum(all_s) - all_s.T@(all_y==1).double()  
+            self.alpha * torch.sum(s) - all_s.T@(y==1).double()  
             # self.alpha - all_s.T@(all_y==1).double() / torch.sum(all_s)
             )
         ret_val = torch.zeros_like(s).to(self.device)
@@ -149,9 +149,9 @@ class FPOR(AL_base):
         
         # return torch.cat([torch.log(ineq/delta + 1).view(1, 1), torch.log(eqs_n/delta_2 + 1), torch.log(eqs_p/delta_2 + 1)])
         
-        ret_val[pos_idx] = torch.log(eqs_p/delta_2 + 1)
-        ret_val[neg_idx] = torch.log(eqs_n/delta_2 + 1)
-        ret_val = torch.concat([ret_val, torch.log(ineq/delta + 1).view(1, 1)])
+        ret_val[pos_idx] = eqs_p
+        ret_val[neg_idx] = eqs_n
+        ret_val = torch.concat([ret_val, ineq])
         
         return ret_val
         

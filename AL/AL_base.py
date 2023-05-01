@@ -40,6 +40,20 @@ class AL_base:
         constraints = self.constrain()
         return self.objective() + ls.T@ constraints\
                 + (self.rho/2)* torch.sum(constraints**2)
+    
+
+    def AL_func_helper(self):
+        """defines the augmented lagrangian function based on the objective function and constrains
+        Returns:
+            augmented lagrangian function
+        """
+        X, idx = self.active_set['X'], self.active_set['idx']
+        X = X.to(self.device)
+        constraints = self.constrain()
+        # return self.objective() + (1/self.rho)* ls.T@(torch.exp(self.rho*constraints)-1)
+        # return self.objective(), constraints, idx
+        ls = self.ls[idx]
+        return self.objective() + (1/self.rho)* ls.T@(torch.exp(self.rho*constraints[:-1])-1), constraints[-1]
 
     
     def adjust_s(self, s):
@@ -50,25 +64,29 @@ class AL_base:
         """solve the sub problem (stochastic)
         """
         L = 0
+        ineq = 0
+        ret_val = 0
         for idx, X, y in self.trainloader:
             X, y = X.to(self.device), y.to(self.device)
             self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
-            L += self.AL_func()
-            
-        L.backward()
+            tmp_obj, tmp_ineq = self.AL_func_helper()
+            L = tmp_obj
+            ineq += tmp_ineq
+            L.backward(retain_graph=True)
+            with torch.no_grad():
+                ret_val += L.item()
+        
+        L_ineq = self.ls[-1] * ineq\
+                + (self.rho/2)* torch.sum(ineq**2)
+
+        L_ineq.backward()
         self.optim.step()
         self.optim.zero_grad()
 
         # print(f"solving sub problem: loss {L.item()}")
-
         with torch.no_grad():
-            self.model.train()
-            ret_val = 0
-            for idx, X, y in self.trainloader:
-                X, y = X.to(self.device), y.to(self.device)
-                self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
-                L = self.AL_func()
-                ret_val += L.item()
+            ret_val += L_ineq.item()
+            
         return ret_val
                 
     def warmstart(self):
