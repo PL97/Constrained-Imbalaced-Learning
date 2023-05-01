@@ -112,7 +112,8 @@ class FPOR(AL_base):
         reweights = torch.ones(X.shape[0], 1).to(self.device)
         reweights[y==1] = weights[1]
 
-        return -s.T@(all_y==1).double()/n_pos + self.args.reg*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
+        return -s.T@(all_y==1).double()/n_pos 
+        # + self.args.reg*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
         
 
     
@@ -121,12 +122,13 @@ class FPOR(AL_base):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
         all_y = self.trainloader.targets.to(self.device)
         s = self.adjust_s(self.s[idx])
+        
+        ret_val = torch.zeros_like(s).to(self.device)
+        
         all_s = self.adjust_s(self.s)
         X = X.float()
         fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
-        ineq = torch.maximum(torch.tensor(0), \
-            self.alpha - all_s.T@(all_y==1).double() / torch.sum(all_s) 
-            )
+        ineq = torch.maximum(torch.tensor(0), self.alpha * torch.sum(all_s)  - all_s.T@(all_y==1).double())
         
         n_pos = torch.sum(all_y==1)
         n_negs = torch.sum(all_y==0)
@@ -134,17 +136,19 @@ class FPOR(AL_base):
         weights = weights/(n_pos/(n_pos+n_negs))
         
         pos_idx = (y==1).flatten()
-        eqs_p = weights[1] * torch.maximum(torch.tensor(0), \
-            torch.maximum(s[pos_idx]+fx[pos_idx]-1-self.t, torch.tensor(0)) - torch.maximum(-s[pos_idx], fx[pos_idx]-self.t)
-        )
+        eqs_p = torch.maximum(torch.tensor(0), weights[1] * torch.maximum(s[pos_idx]+fx[pos_idx]-1-self.t, torch.tensor(0)) - torch.maximum(-s[pos_idx], fx[pos_idx]-self.t))
         neg_idx = (y==0).flatten()
-        eqs_n = torch.maximum(torch.tensor(0), \
-            -torch.maximum(s[neg_idx]+fx[neg_idx]-1-self.t, torch.tensor(0)) + torch.maximum(-s[neg_idx], fx[neg_idx]-self.t)
-        )
+        eqs_n = torch.maximum(torch.tensor(0), -torch.maximum(s[neg_idx]+fx[neg_idx]-1-self.t, torch.tensor(0)) + torch.maximum(-s[neg_idx], fx[neg_idx]-self.t))
         
-        delta = 0.1
-        delta_2 = 0.1
-        return torch.cat([torch.log(ineq/delta + 1).view(1, 1), torch.log(eqs_n/delta_2 + 1), torch.log(eqs_p/delta_2 + 1)])
+        ##! should preserve the order
+        ret_val[pos_idx] = eqs_p.reshape(-1, 1)
+        ret_val[neg_idx] = eqs_n
+        ret_val = torch.concat([ret_val, ineq.view(1, 1)])
+        
+        # grad = torch.autograd.grad(outputs=ret_val[-1], inputs=s)
+        # print(grad[0])
+        # asdf
+        return ret_val
 
     
     @torch.no_grad()

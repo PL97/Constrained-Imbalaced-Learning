@@ -38,8 +38,20 @@ class AL_base:
         ls = torch.cat([self.ls[idx], self.ls[-1].reshape(1, 1)])
         X = X.to(self.device)
         constraints = self.constrain()
-        return self.objective() + (1/self.rho)* self.ls.T@(torch.exp(self.rho*constraints)-1) + (1/self.rho)* self.ls.T@(torch.exp(-self.rho*constraints)-1)
+        return self.objective() + (1/self.rho)* ls.T@(torch.exp(self.rho*constraints)-1)
 
+
+    def AL_func_helper(self):
+        """defines the augmented lagrangian function based on the objective function and constrains
+
+        Returns:
+            augmented lagrangian function
+        """
+        X, idx = self.active_set['X'], self.active_set['idx']
+        ls = torch.cat([self.ls[idx], self.ls[-1].reshape(1, 1)])
+        X = X.to(self.device)
+        constraints = self.constrain()
+        return self.objective() + (1/self.rho)* ls.T@(torch.exp(self.rho*constraints)-1)
     
     def adjust_s(self, s):
         return torch.sigmoid(s * self.lr_adaptor)
@@ -48,25 +60,14 @@ class AL_base:
     def solve_sub_problem(self): 
         """solve the sub problem (stochastic)
         """
+        L = 0
         for idx, X, y in self.trainloader:
             X, y = X.to(self.device), y.to(self.device)
             self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
-            from copy import deepcopy
-            tmp_s = deepcopy(self.s.data)
-
-            
-            with torch.cuda.amp.autocast():
-                L = self.AL_func()
-            self.scaler.scale(L).backward()
-
-            with torch.no_grad():
-                for i in idx:
-                    tmp_s[i] = self.s.data[i]
-                self.s.data.copy_(tmp_s)
+            L += self.AL_func()
         
-        self.scaler.unscale_(self.optim)
-        self.scaler.step(self.optim)
-        self.scaler.update()
+        L.backward()
+        self.optim.step()
         self.optim.zero_grad()
 
 
@@ -112,8 +113,7 @@ class AL_base:
     def update_langrangian_multiplier(self):
         """update the lagrangian multipler
         """
-        tmp_constrains = 1
-        tmp_ineq = self.ls[-1]
+        tmp = 0
         count_updates = 0
         for idx, X, y in self.trainloader:
             count_updates += 1
@@ -121,15 +121,10 @@ class AL_base:
             self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
             # constrain_output = (1/self.rho)* (torch.exp(self.rho*self.constrain()**2)-1)
             constraints = self.constrain()
-            constraints = (1/self.rho)*(torch.exp(self.rho*constraints)-1) + (1/self.rho)*(torch.exp(-self.rho*constraints)-1)
-            self.ls[idx] += self.rho*constraints[:-1]
-            self.ls[-1] += self.rho*constraints[-1]
-            tmp_constrains += torch.norm(constraints).item()
-        self.ls[-1] = tmp_ineq + (self.ls[-1] - tmp_ineq)/count_updates  ## readjust update steps
+            self.ls[idx] *= torch.exp(self.rho*constraints[:-1])
+            tmp += constraints[-1]
+        self.ls[-1] *= torch.exp(self.rho*tmp)
         self.rho *= self.delta
-        if tmp_constrains > self.pre_constrain:
-            self.rho *= self.delta
-            self.pre_constrain = tmp_constrains
     
     def fit(self):
         """solve the constrained problem, in each round we iterativly solve the sub problem and update the lagrangian multiplier
