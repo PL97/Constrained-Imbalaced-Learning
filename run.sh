@@ -19,7 +19,7 @@
 python main.py --run_name constrained_IL_NIPS \
                 --dataset breast-cancer-wisc \
                 --model MLP \
-                --batch_size 2000 \
+                --batch_size 5000 \
                 --learning_rate 1e-4 \
                 --learning_rate_s 1e-2 \
                 --method AL_FPOR \

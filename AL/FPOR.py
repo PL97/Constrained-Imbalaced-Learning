@@ -112,8 +112,7 @@ class FPOR(AL_base):
         reweights = torch.ones(X.shape[0], 1).to(self.device)
         reweights[y==1] = weights[1]
 
-        return -s.T@(all_y==1).double()/n_pos 
-        # + self.args.reg*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
+        return -s.T@(all_y==1).double()/n_pos + self.args.reg*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
         
 
     

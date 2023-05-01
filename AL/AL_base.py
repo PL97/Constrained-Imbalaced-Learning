@@ -48,10 +48,10 @@ class AL_base:
             augmented lagrangian function
         """
         X, idx = self.active_set['X'], self.active_set['idx']
-        ls = torch.cat([self.ls[idx], self.ls[-1].reshape(1, 1)])
         X = X.to(self.device)
         constraints = self.constrain()
-        return self.objective() + (1/self.rho)* ls.T@(torch.exp(self.rho*constraints)-1)
+        # return self.objective() + (1/self.rho)* ls.T@(torch.exp(self.rho*constraints)-1)
+        return self.objective(), constraints, idx
     
     def adjust_s(self, s):
         return torch.sigmoid(s * self.lr_adaptor)
@@ -61,25 +61,23 @@ class AL_base:
         """solve the sub problem (stochastic)
         """
         L = 0
+        const_v = torch.zeros_like(self.s).to(self.device)
+        ineq = 0
         for idx, X, y in self.trainloader:
             X, y = X.to(self.device), y.to(self.device)
             self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
-            L += self.AL_func()
-        
+            tmp_obj, tmp_const, tmp_idx = self.AL_func_helper()
+            L += tmp_obj
+            const_v[tmp_idx] = tmp_const[:-1]
+            ineq += tmp_const[-1]
+
+        const_v = torch.concat([const_v, ineq.view(1, 1)])
+        L += (1/self.rho)* self.ls.T@(torch.exp(self.rho*const_v)-1)
+
         L.backward()
         self.optim.step()
         self.optim.zero_grad()
-
-
-        with torch.no_grad():
-            self.model.train()
-            ret_val = 0
-            for idx, X, y in self.trainloader:
-                X, y = X.to(self.device), y.to(self.device)
-                self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
-                L = self.AL_func()
-                ret_val += L.item()
-        return ret_val
+        return L.item()
                 
     def warmstart(self):
         """warm start to get a good initialization, empirically this can speedup the convergence and improve the performance
