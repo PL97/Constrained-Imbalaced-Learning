@@ -8,6 +8,7 @@ import pandas as pd
 from sklearn.metrics import average_precision_score
 from torch.optim import SGD, AdamW, Adam, LBFGS
 import numpy as np
+import gc
 
 class AL_base:
     @torch.no_grad()
@@ -53,7 +54,8 @@ class AL_base:
         # return self.objective() + (1/self.rho)* ls.T@(torch.exp(self.rho*constraints)-1)
         # return self.objective(), constraints, idx
         ls = self.ls[idx]
-        return self.objective() + (1/self.rho)* ls.T@(torch.exp(self.rho*constraints[:-1])-1), constraints[-1]
+        return self.objective() + ls.T@ constraints[:-1]\
+                + (self.rho/2)* torch.sum(constraints[:-1]**2), constraints[-1]
 
     
     def adjust_s(self, s):
@@ -68,13 +70,17 @@ class AL_base:
         ret_val = 0
         for idx, X, y in self.trainloader:
             X, y = X.to(self.device), y.to(self.device)
-            self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx}
+            fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
+            self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx, "fx": fx}
             tmp_obj, tmp_ineq = self.AL_func_helper()
             L = tmp_obj
             ineq += tmp_ineq
             L.backward(retain_graph=True)
             with torch.no_grad():
                 ret_val += L.item()
+            
+            gc.collect()
+            torch.cuda.empty_cache()
         
         L_ineq = self.ls[-1] * ineq\
                 + (self.rho/2)* torch.sum(ineq**2)
@@ -117,6 +123,11 @@ class AL_base:
                 print("Precision: {:.3f} \t Recall {:.3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
                         train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
         
+        
+        for _, param in self.model.features.named_parameters():
+            param.requires_grad = False
+        nn.init.xavier_uniform_(self.model.fc_layers.weight)    
+
     
     def update_langrangian_multiplier(self):
         """update the lagrangian multipler

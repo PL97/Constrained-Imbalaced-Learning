@@ -82,7 +82,7 @@ def pytorchlightning_wandb_setup(args):
     Returns:
         wandb_logger: will be used for Pytorch lightning trainer
     """
-    wandb_logger = WandbLogger(project="constrained_IL", \
+    wandb_logger = WandbLogger(project=args.run_name, \
                                 name=args.method, \
                                 save_dir=args.workspace)
     wandb_logger.experiment.config.update({
@@ -113,7 +113,7 @@ if __name__ == "__main__":
                                                         batch_size=args.batch_size, \
                                                         random_seed=args.random_seed, \
                                                         with_idx=("AL" in args.method), shuffle=False)
-        model = MLP(input_dim=stats['feature_dim'], hidden_dim=100, num_layers=10, output_dim=stats['label_num'])
+        model = MLP(input_dim=stats['feature_dim'], hidden_dim=100, num_layers=5, output_dim=stats['label_num'])
     
     args.datastats = stats
     print(stats)

@@ -61,19 +61,6 @@ def get_data(name='adult', batch_size=10, random_seed=1997, with_idx=True, shuff
                                                     stratify=y_tmp, \
                                                     random_state=random_seed)
 
-    # train_data = np.concatenate((X_train, y_train), axis=1)
-    # test_data = np.concatenate((X_test, y_test), axis=1)
-    # val_data = np.concatenate((X_val, y_val), axis=1)
-    
-    # train_df = pd.DataFrame(train_data)
-    # test_df = pd.DataFrame(test_data)
-    # val_df = pd.DataFrame(val_data)
-    # train_df.to_csv("train.csv")
-    # test_df.to_csv("test.csv")
-    # val_df.to_csv("val.csv")
-    # print(train_data.shape, test_data.shape, val_data.shape)
-    # asdf
-
     stats = {
         'feature_dim': X.shape[1], \
         'label_num': len(np.unique(y)), \

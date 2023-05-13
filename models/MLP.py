@@ -10,23 +10,15 @@ class MLP(nn.Module):
             layers.append(nn.BatchNorm1d(num_features = hidden_dim))
             layers.append(nn.ReLU())
             layers.append(nn.Linear(hidden_dim, hidden_dim, bias=bias))
-        if output_dim == 1:
-            layers.append(nn.Linear(hidden_dim, output_dim, bias=bias))
-            layers.append(nn.Sigmoid())
-        else:
-            layers.append(nn.Linear(hidden_dim, output_dim, bias=bias))
-        
-        
-        self.net = nn.Sequential(*layers)
-    def forward(self, X):
-        return self.net(X)
+        self.features = nn.Sequential(*layers)
 
-# def MLP(input_dim, hidden_dim=30, num_layers=3):
-#     net =  nn.Sequential(nn.Linear(input_dim, 1, bias=True),
-#                         nn.Sigmoid()
-#                         )
-    
-#     for name, param in net.named_parameters():
-#         print(name, param.size())
-    
-#     return net
+        if output_dim == 1:
+            self.fc_layers = nn.Sequential(
+                        nn.Linear(hidden_dim, output_dim, bias=bias),
+                        nn.Sigmoid())
+        else:
+            self.fc_layers = nn.Linear(hidden_dim, output_dim, bias=bias)
+
+    def forward(self, X):
+        x = self.features(X)
+        return self.fc_layers(x)

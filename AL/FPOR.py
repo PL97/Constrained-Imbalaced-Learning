@@ -13,6 +13,8 @@ from sklearn.metrics import average_precision_score
 from copy import deepcopy
 
 from utils.utils import log
+import gc
+from tqdm import tqdm
 
 
 
@@ -86,7 +88,7 @@ class FPOR(AL_base):
                             dtype=torch.float64, device=self.device)
         
         self.active_set = None ## this defines a set of activate data(includes indices) that used for optimizing subproblem
-        self.optim = AdamW([
+        self.optim = Adam([
                     {'params': self.model.parameters(), 'lr': self.lr},
                     {'params': self.s, 'lr': self.lr_s}  ##best to set as 0.5
                     ])
@@ -101,10 +103,10 @@ class FPOR(AL_base):
     
     def objective(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
-        s = self.adjust_s(self.s)
+        fx = self.active_set['fx'] if 'fx' in self.active_set else self.softmax(self.model(X))[:, 1].view(-1, 1)
+        s = self.adjust_s(self.s[idx])
         all_y = self.trainloader.targets.to(self.device)
         n_pos = torch.sum(all_y==1)
-        fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
         n_pos = torch.sum(all_y==1)
         n_negs = torch.sum(all_y==0)
         weights = torch.tensor([n_pos/(n_pos+n_negs), n_negs/(n_negs+n_pos)]).to(self.device)
@@ -112,21 +114,22 @@ class FPOR(AL_base):
         reweights = torch.ones(X.shape[0], 1).to(self.device)
         reweights[y==1] = weights[1]
 
-        return -s.T@(all_y==1).double()/n_pos + self.args.reg*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
+        # return -s.T@(all_y==1).double()/n_pos + self.args.reg*torch.norm(reweights * fx *(1-fx))/idx.shape[0]
+        return -s.T@(y==1).double()/n_pos + self.args.reg*torch.sum(reweights * fx *(1-fx)) / (n_pos + n_negs)
         
 
     
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
     def constrain(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
+        fx = self.active_set['fx'] if 'fx' in self.active_set else self.softmax(self.model(X))[:, 1].view(-1, 1)
         all_y = self.trainloader.targets.to(self.device)
         s = self.adjust_s(self.s[idx])
         all_s = self.adjust_s(self.s)
         X = X.float()
         N = y.shape[0]
-        fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
-        ineq = (1./N) * torch.maximum(torch.tensor(0), \
-            self.alpha * torch.sum(s) - all_s.T@(y==1).double()  
+        ineq = torch.maximum(torch.tensor(0), \
+            self.alpha * torch.sum(s) - s.T@(y==1).double()  
             # self.alpha - all_s.T@(all_y==1).double() / torch.sum(all_s)
             )
         ret_val = torch.zeros_like(s).to(self.device)
@@ -147,15 +150,46 @@ class FPOR(AL_base):
         delta = 0.1
         delta_2 = 0.1
         
-        # return torch.cat([torch.log(ineq/delta + 1).view(1, 1), torch.log(eqs_n/delta_2 + 1), torch.log(eqs_p/delta_2 + 1)])
+        # return torch.cat([torch.log(eqs_n/delta_2 + 1), torch.log(eqs_p/delta_2 + 1), ineq.view(1, 1)])
         
         ret_val[pos_idx] = eqs_p
         ret_val[neg_idx] = eqs_n
-        ret_val = torch.concat([ret_val, ineq])
+        ret_val = torch.concat([ret_val, ineq.view(1, 1)])
         
         return ret_val
         
+    def solve_sub_problem(self): 
+        """solve the sub problem (stochastic)
+        """
+        L = 0
+        ret_val = 0
+        for idx, X, y in self.trainloader:
+            X, y = X.to(self.device), y.to(self.device)
+            fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
+            self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx, "fx": fx}
+            tmp_obj, _ = self.AL_func_helper()
+            L = tmp_obj
+            L.backward()
+            with torch.no_grad():
+                ret_val += L.item()
         
+        all_y = self.trainloader.targets.to(self.device)
+        all_s = self.adjust_s(self.s)
+        ineq = torch.maximum(torch.tensor(0), \
+                self.alpha - all_s.T@(all_y==1).double() / torch.sum(all_s)
+            )
+        L_ineq = self.ls[-1] * ineq\
+                + (self.rho/2)* torch.sum(ineq**2)
+
+        L_ineq.backward()
+        self.optim.step()
+        self.optim.zero_grad()
+
+        # print(f"solving sub problem: loss {L.item()}")
+        with torch.no_grad():
+            ret_val += L_ineq.item()
+            
+        return ret_val
 
     
     @torch.no_grad()
@@ -178,7 +212,7 @@ class FPOR(AL_base):
             self.r = r
             # Log gradients and model parameters
             self.model.train()
-            for _ in range(self.subprob_max_epoch):
+            for _ in tqdm(range(self.subprob_max_epoch)):
                 # print(f"================= {_} ==============")
                 Lag_loss = self.solve_sub_problem()
                 # print(f"lagrangian value: {Lag_loss}")
@@ -199,8 +233,16 @@ class FPOR(AL_base):
                 val_metrics = self.test(self.valloader)
                 test_metrics = self.test(self.testloader)
                 
-                constraints = self.constrain()
-                obj = self.objective().item()
+                
+                constraints = 0
+                obj = 0
+                for idx, X, y in self.trainloader:
+                    X, y = X.to(self.device), y.to(self.device)
+                    fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
+                    self.active_set = {"X": X, "y": y, "s": self.s[idx], "idx": idx, "fx": fx}
+                
+                    constraints = self.constrain()
+                    obj = self.objective().item()
                 
                 log(constraints, obj, train_metrics, val_metrics, test_metrics, verbose=True, r=r, rounds=self.rounds)
                   

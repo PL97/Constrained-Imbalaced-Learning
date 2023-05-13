@@ -89,6 +89,7 @@ class OAP(AL_base):
     
     def objective(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
+        fx = self.active_set['fx'] if 'fx' in self.active_set else self.softmax(self.model(X))[:, 1].view(-1, 1)
         all_y = self.trainloader.targets.to(self.device)
         all_s = self.adjust_s(self.s)
         
@@ -110,7 +111,7 @@ class OAP(AL_base):
         obj = (1/n_pos)*ret
         
         # return -obj
-        reg = reweights*(self.fx - torch.mean(self.fx)) ** 2
+        reg = reweights*(fx - torch.mean(fx)) ** 2
         
         return -obj - self.args.reg*torch.norm(reg)/idx.shape[0]
 
@@ -119,6 +120,7 @@ class OAP(AL_base):
     ## we convert all C(x) <= 0  to max(0, C(x)) = 0
     def constrain(self):
         X, y, idx = self.active_set['X'].to(self.device), self.active_set['y'].to(self.device), self.active_set['idx']
+        fx = self.active_set['fx'] if 'fx' in self.active_set else self.softmax(self.model(X))[:, 1].view(-1, 1)
         s = self.s[idx, :]
         s = s[:, idx]
         s = self.adjust_s(s=s)
@@ -130,15 +132,15 @@ class OAP(AL_base):
                 continue
             j = (y==0).flatten()
             c1 = torch.maximum(torch.tensor(0), \
-                    - torch.maximum(s[i, j] + self.fx[j] - self.fx[i] - 1, torch.tensor(0)) \
-                        + torch.maximum(-s[i, j], self.fx[j] - self.fx[i])
+                    - torch.maximum(s[i, j] + fx[j] - fx[i] - 1, torch.tensor(0)) \
+                        + torch.maximum(-s[i, j], fx[j] - fx[i])
                     )
             constrains_1.extend(c1)
 
             j = (y==1).flatten()
             c2 = torch.maximum(torch.tensor(0), \
-            torch.maximum(s[i, j] + self.fx[j] - self.fx[i] - 1, torch.tensor(0)) \
-                - torch.maximum(-s[i, j], self.fx[j] - self.fx[i])
+            torch.maximum(s[i, j] + fx[j] - fx[i] - 1, torch.tensor(0)) \
+                - torch.maximum(-s[i, j], fx[j] - fx[i])
             )
             constrains_2.extend(c2)
 
@@ -161,7 +163,7 @@ class OAP(AL_base):
         X, idx, y = self.active_set['X'], self.active_set['idx'], self.active_set['y']
         ls = self.ls
         with torch.cuda.amp.autocast():
-            self.fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
+            fx = self.softmax(self.model(X))[:, 1].view(-1, 1)
 
         const = self.constrain()
         return self.objective() + ls.T@const \

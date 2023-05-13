@@ -10,7 +10,7 @@ def log(constraints, obj, train_metrics, val_metrics, test_metrics, verbose=True
         print(f"========== Round {r}/{rounds} ===========")
         print("Precision: {:3f} \t Recall {:3f} \t F_beta {:.3f} \t AP {:.3f}".format(\
                 train_metrics['precision'], train_metrics['recall'], train_metrics['F_beta'], train_metrics['AP']))
-        print("Obj: {}\tIEQ: {}\tEQ: {}".format(obj, constraints[0].item(), torch.sum(constraints[1:]).item()))
+        print("Obj: {}\tIEQ: {}\tEQ: {}".format(obj, constraints[-1].item(), torch.sum(constraints[:-1]).item()))
         print("(val)Precision: {:3f} \t Recall {:3f} F_beta {:.3f} AP:{:.3f}".format(\
                 val_metrics['precision'], val_metrics['recall'], val_metrics['F_beta'], val_metrics['AP']))
             
